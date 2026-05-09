@@ -3,8 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useMe } from './modules/auth/hooks';
 
 // Types
 import { Page } from './types';
@@ -25,19 +26,28 @@ import { Support } from './pages/Support';
 import { SignIn } from './pages/SignIn';
 
 export default function App() {
+  const { data: me, isLoading } = useMe();
   const [currentPage, setCurrentPage] = useState<Page>('SIGN_IN');
-  const [user] = useState('Mk4-1');
   const [isTicketOpen, setIsTicketOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isUserFound, setIsUserFound] = useState(false);
 
-  const handleSearch = () => {
-    if (searchQuery.trim()) {
-      setIsUserFound(true);
-    } else {
-      setIsUserFound(false);
+  useEffect(() => {
+    if (!isLoading) {
+      if (me) {
+        setCurrentPage('DASHBOARD');
+      } else {
+        setCurrentPage('SIGN_IN');
+      }
     }
-  };
+  }, [me, isLoading]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#2c353d] flex items-center justify-center">
+        <div className="text-[#ffde00] font-black animate-pulse">LOADING MEZZO...</div>
+      </div>
+    );
+  }
 
   const renderContent = () => {
     switch (currentPage) {
@@ -46,30 +56,17 @@ export default function App() {
           <Dashboard 
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
-            isUserFound={isUserFound}
-            handleSearch={handleSearch}
-            setIsUserFound={setIsUserFound}
-            setIsTicketOpen={setIsTicketOpen}
           />
         );
-      case 'FINANCE':
-        return <Finance />;
-      case 'PAYOUTS':
-        return <Payouts />;
-      case 'TICKET_PAYOUTS':
-        return <TicketPayouts />;
-      case 'WEBSITE':
-        return <Website />;
-      case 'BETS':
-        return <Bets />;
-      case 'RESULTS':
-        return <Results />;
-      case 'SUPPORT':
-        return <Support />;
-      case 'SIGN_IN':
-        return <SignIn setCurrentPage={setCurrentPage} />;
-      default:
-        return <div>Page not found</div>;
+      case 'FINANCE': return <Finance />;
+      case 'PAYOUTS': return <Payouts />;
+      case 'TICKET_PAYOUTS': return <TicketPayouts />;
+      case 'WEBSITE': return <Website />;
+      case 'BETS': return <Bets />;
+      case 'RESULTS': return <Results searchQuery={searchQuery} setSearchQuery={setSearchQuery} />;
+      case 'SUPPORT': return <Support />;
+      case 'SIGN_IN': return <SignIn setCurrentPage={setCurrentPage} />;
+      default: return <div>Page not found</div>;
     }
   };
 
@@ -77,7 +74,7 @@ export default function App() {
     <div className="min-h-screen bg-[#2c353d] text-gray-100 font-sans selection:bg-[#ffde00] selection:text-black">
       {currentPage !== 'SIGN_IN' && (
         <>
-          <Navbar activePage={currentPage} setActivePage={setCurrentPage} user={user} />
+          <Navbar activePage={currentPage} setActivePage={setCurrentPage} shortCode={searchQuery} setShortCode={setSearchQuery} />
           <div className="max-w-[1920px] mx-auto p-4 lg:p-6 h-[calc(100vh-8.5rem)] overflow-y-auto">
             <AnimatePresence mode="wait">
               <motion.div

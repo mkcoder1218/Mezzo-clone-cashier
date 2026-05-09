@@ -19,8 +19,8 @@ export const TicketModal = ({ isOpen, onClose }: TicketModalProps) => {
       <div className="bg-[#2c353d] w-80 shadow-2xl rounded-sm overflow-hidden animate-in fade-in zoom-in duration-200">
         <div className="bg-[#333c44] flex items-center justify-between px-3 py-1.5 border-b border-gray-700">
           <div className="flex gap-3">
-            <span className="text-white text-[9px] font-black border-b border-[#ffde00] pb-0.5 uppercase tracking-tighter">Print Preview</span>
-            <span className="text-gray-400 text-[9px] font-black uppercase tracking-tighter">Ticket Info</span>
+            <span className="text-white text-[11px] font-black border-b border-[#ffde00] pb-0.5 uppercase tracking-tighter">Print Preview</span>
+            <span className="text-gray-400 text-[11px] font-black uppercase tracking-tighter">Ticket Info</span>
           </div>
           <X size={12} className="text-white cursor-pointer hover:text-[#ffde00]" onClick={onClose} />
         </div>
@@ -31,7 +31,7 @@ export const TicketModal = ({ isOpen, onClose }: TicketModalProps) => {
             <span className="text-lg font-black italic tracking-tighter mt-0 leading-none border-t border-gray-800 w-full text-center">bet</span>
           </div>
           
-          <div className="w-full space-y-0.5 text-[8px] font-black text-gray-800 uppercase tracking-tight">
+          <div className="w-full space-y-0.5 text-[10px] font-black text-gray-800 uppercase tracking-tight">
             <p className="border-b border-gray-100 pb-0.5">Website Deposit</p>
             <p className="border-b border-gray-100 pb-0.5">Phone: +251933894492</p>
             <p className="border-b border-gray-100 pb-0.5">Amount: 50.00</p>
@@ -40,7 +40,7 @@ export const TicketModal = ({ isOpen, onClose }: TicketModalProps) => {
         </div>
 
         <div className="bg-[#333c44] p-1.5 flex justify-start">
-          <button className="bg-white text-gray-800 px-3 py-1 text-[8px] font-black rounded-sm shadow-inner hover:bg-gray-100 uppercase transition-colors tracking-tighter">
+          <button className="bg-white text-gray-800 px-3 py-1 text-[10px] font-black rounded-sm shadow-inner hover:bg-gray-100 uppercase transition-colors tracking-tighter">
             Print
           </button>
         </div>

@@ -3,42 +3,63 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Page } from '../types';
+import { useLogin } from '../modules/auth/hooks';
 
 interface SignInProps {
   setCurrentPage: (p: Page) => void;
 }
 
 export const SignIn = ({ setCurrentPage }: SignInProps) => {
+  const [cashierName, setCashierName] = useState('');
+  const [password, setPassword] = useState('');
+  const loginMutation = useLogin();
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await loginMutation.mutateAsync({ phoneNumber: cashierName, password });
+      setCurrentPage('DASHBOARD');
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Login failed');
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-[#2c353d] flex items-center justify-center p-4">
        <div className="flex w-full max-w-3xl h-[400px] shadow-[0_0_80px_rgba(0,0,0,0.6)] rounded-lg overflow-hidden border border-gray-700/50 animate-in fade-in zoom-in duration-500">
           <div className="w-1/2 bg-[#5d5a57] p-12 flex flex-col justify-center gap-8 border-r border-gray-700/30">
              <h1 className="text-[#d8d8d8] text-xl font-black uppercase tracking-widest border-b-2 border-gray-400/30 pb-1 w-fit">Sign In</h1>
-             <div className="space-y-6">
+             <form onSubmit={handleLogin} className="space-y-6">
                 <div className="space-y-1">
-                  <label className="text-[9px] text-[#e0e0e0] font-black uppercase tracking-widest opacity-60">Username</label>
+                  <label className="text-[11px] text-[#e0e0e0] font-black uppercase tracking-widest opacity-70">Cashier Name</label>
                   <input 
-                    defaultValue="mk4-1"
+                    type="text"
+                    placeholder="cashier_1"
+                    value={cashierName}
+                    onChange={(e) => setCashierName(e.target.value)}
                     className="w-full bg-[#ecf2f8] p-2 text-sm font-bold text-gray-800 focus:outline-none shadow-[inset_0_1px_4px_rgba(0,0,0,0.15)] rounded-sm border-2 border-transparent focus:border-[#4fbfff] transition-all"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[9px] text-[#e0e0e0] font-black uppercase tracking-widest opacity-60">Password</label>
+                  <label className="text-[11px] text-[#e0e0e0] font-black uppercase tracking-widest opacity-70">Password</label>
                   <input 
                     type="password"
-                    defaultValue="password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     className="w-full bg-[#ecf2f8] p-2 text-sm font-bold text-gray-800 focus:outline-none shadow-[inset_0_1px_4px_rgba(0,0,0,0.15)] rounded-sm border-2 border-transparent focus:border-[#4fbfff] transition-all"
                   />
                 </div>
                 <button 
-                  onClick={() => setCurrentPage('DASHBOARD')}
-                  className="bg-[#333c44] border border-gray-600 text-white font-black py-2.5 px-8 text-[11px] uppercase tracking-widest shadow-2xl hover:bg-gray-700 hover:border-[#ffde00] hover:text-[#ffde00] active:scale-95 transition-all w-full md:w-fit"
+                  type="submit"
+                  disabled={loginMutation.isPending}
+                  className="bg-[#333c44] border border-gray-600 text-white font-black py-2.5 px-8 text-[11px] uppercase tracking-widest shadow-2xl hover:bg-gray-700 hover:border-[#ffde00] hover:text-[#ffde00] active:scale-95 transition-all w-full md:w-fit disabled:opacity-50"
                 >
-                  Log In
+                  {loginMutation.isPending ? 'Logging in...' : 'Log In'}
                 </button>
-             </div>
+             </form>
           </div>
           <div className="w-1/2 bg-[#2c313a] flex flex-col items-center justify-center p-8 relative overflow-hidden">
              <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent"></div>

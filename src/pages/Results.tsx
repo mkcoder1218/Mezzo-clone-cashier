@@ -4,12 +4,79 @@
  */
 
 import React from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { PageHeader } from '../components/PageHeader';
+import { api } from '../lib/api';
 
-export const Results = () => {
+export const Results = ({ searchQuery, setSearchQuery }: { searchQuery: string; setSearchQuery: (v: string) => void }) => {
+  const [activeTab] = React.useState<'SPORTS' | 'KENO' | 'DOGS' | 'WOF' | 'KABOOM' | 'HORSES' | 'TOTO'>('SPORTS');
+  const [statusFilter, setStatusFilter] = React.useState<'all' | 'finished'>('finished');
+  const [page, setPage] = React.useState(1);
+  const limit = 10;
+  const offset = (page - 1) * limit;
+
+  const resultsQuery = useQuery({
+    queryKey: ['results', { activeTab, searchQuery, page, statusFilter }],
+    queryFn: async () => {
+      const { data } = await api.get('/results', {
+        params: {
+          limit,
+          offset,
+          q: searchQuery || undefined,
+          status: statusFilter === 'finished' ? 'finished' : undefined
+        }
+      });
+      return data as { count: number; rows: any[] };
+    },
+    enabled: activeTab === 'SPORTS',
+    staleTime: 10_000
+  });
+
+  const rows = resultsQuery.data?.rows || [];
+  const count = resultsQuery.data?.count || 0;
+  const totalPages = Math.max(1, Math.ceil(count / limit));
+
+  React.useEffect(() => {
+    setPage(1);
+  }, [searchQuery, activeTab, statusFilter]);
+
+  const fmtDate = (iso: string) => {
+    const d = new Date(iso);
+    // "MM-DD HH:mm"
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mi = String(d.getMinutes()).padStart(2, '0');
+    return `${mm}-${dd} ${hh}:${mi}`;
+  };
+
   return (
     <div className="space-y-4 pt-2">
       <PageHeader title="Sports and Games Results">
+        <input
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search (team, league, country, sport)..."
+          className="ml-3 w-[320px] max-w-[45vw] bg-[#1f282f] border border-gray-700 text-gray-100 placeholder-gray-500 px-3 py-1 text-[10px] font-black uppercase tracking-wider focus:outline-none focus:border-[#4fbfff]"
+        />
+        <div className="ml-2 flex items-center gap-1">
+          <button
+            onClick={() => setStatusFilter('finished')}
+            className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest border border-gray-700 ${
+              statusFilter === 'finished' ? 'bg-[#333c44] text-[#ffde00]' : 'bg-[#1f282f] text-gray-400 hover:text-white'
+            }`}
+          >
+            Finished
+          </button>
+          <button
+            onClick={() => setStatusFilter('all')}
+            className={`px-3 py-1 text-[9px] font-black uppercase tracking-widest border border-gray-700 ${
+              statusFilter === 'all' ? 'bg-[#333c44] text-[#ffde00]' : 'bg-[#1f282f] text-gray-400 hover:text-white'
+            }`}
+          >
+            All
+          </button>
+        </div>
         <button className="bg-[#4fbfff] text-white px-4 py-1 text-[9px] font-black rounded-sm uppercase tracking-widest hover:bg-[#3dafee] shadow-md transition-all active:scale-95">Print</button>
       </PageHeader>
 
@@ -17,7 +84,10 @@ export const Results = () => {
          {['SPORTS', 'KENO', 'DOGS', 'WOF', 'KABOOM', 'HORSES', 'TOTO'].map((tab, i) => (
            <button 
             key={tab} 
-            className={`py-3.5 text-[10px] font-black uppercase tracking-wider transition-all ${i === 0 ? 'text-[#ffde00] bg-[#333c44] border-b-2 border-[#ffde00]' : 'text-gray-400 hover:text-white hover:bg-gray-700'}`}
+            disabled={tab !== 'SPORTS'}
+            className={`py-3.5 text-[10px] font-black uppercase tracking-wider transition-all ${
+              tab === 'SPORTS' ? 'text-[#ffde00] bg-[#333c44] border-b-2 border-[#ffde00]' : 'text-gray-600 opacity-50 cursor-not-allowed'
+            }`}
            >
              {tab}
            </button>
@@ -36,22 +106,63 @@ export const Results = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-700/50 text-gray-400 font-black">
-            {[
-              { s: 'Basketball', c: 'World - IPBL - Prime Division', d: '05-05 13:00', e: 'Bears V Octopus', r: '114-134,(38-32)(26-29)(27-35)(23-38)' },
-              { s: 'Table Tennis', c: 'Russia - Moscow Liga Pro', d: '05-05 13:45', e: 'Alexander Kuzmin V Sergey Petrushov', r: '3-0,(11-7)(11-2)(11-6)' },
-              { s: 'Basketball', c: 'Russia - IPBL Pro Division', d: '05-05 13:10', e: 'Belgorod V Saratov', r: '84-95,(20-24)(20-19)(23-19)(21-33)' },
-              { s: 'Football', c: 'Bangladesh - Federation Cup', d: '05-05 11:45', e: 'Brothers Union V Bashundhara Kings', r: '0-4,(0-1)(0-3)' },
-            ].map((row, i) => (
-              <tr key={i} className="hover:bg-gray-700/50 transition-colors uppercase">
-                <td className="py-2 px-3 border-r border-gray-700/50">{row.s}</td>
-                <td className="py-2 px-3 border-r border-gray-700/50">{row.c}</td>
-                <td className="py-2 px-3 border-r border-gray-700/50">{row.d}</td>
-                <td className="py-2 px-3 border-r border-gray-700/50">{row.e}</td>
-                <td className="py-2 px-3 font-mono text-[#ffde00]">{row.r}</td>
+            {resultsQuery.isLoading ? (
+              <tr>
+                <td colSpan={5} className="py-10 text-center text-gray-400 uppercase tracking-widest">Loading...</td>
               </tr>
-            ))}
+            ) : resultsQuery.isError ? (
+              <tr>
+                <td colSpan={5} className="py-10 text-center text-red-300 uppercase tracking-widest">Failed to load results</td>
+              </tr>
+            ) : rows.length ? (
+              rows.map((row: any) => {
+                const sport = row.Sport?.name || '-';
+                const leagueCountry = row.League?.country ? `${row.League.country} - ` : '';
+                const league = `${leagueCountry}${row.League?.name || '-'}`;
+                const date = row.startsAt ? fmtDate(row.startsAt) : '-';
+                const event = `${row.homeTeam?.name || '-'} V ${row.awayTeam?.name || '-'}`;
+                const score = row.externalScoreRaw || (row.homeScore != null && row.awayScore != null ? `${row.homeScore}-${row.awayScore}` : '-');
+
+                return (
+                  <tr key={row.id} className="hover:bg-gray-700/50 transition-colors uppercase">
+                    <td className="py-2 px-3 border-r border-gray-700/50">{sport}</td>
+                    <td className="py-2 px-3 border-r border-gray-700/50">{league}</td>
+                    <td className="py-2 px-3 border-r border-gray-700/50">{date}</td>
+                    <td className="py-2 px-3 border-r border-gray-700/50">{event}</td>
+                    <td className="py-2 px-3 font-mono text-[#ffde00]">{score}</td>
+                  </tr>
+                );
+              })
+            ) : (
+              <tr>
+                <td colSpan={5} className="py-10 text-center text-gray-400 uppercase tracking-widest">No results</td>
+              </tr>
+            )}
           </tbody>
         </table>
+      </div>
+
+      <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-gray-400">
+        <div>Showing {rows.length} of {count}</div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page <= 1}
+            className="px-3 py-1 border border-gray-700 bg-[#292f36] hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Prev
+          </button>
+          <div className="min-w-[72px] text-center">
+            {page} / {totalPages}
+          </div>
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page >= totalPages}
+            className="px-3 py-1 border border-gray-700 bg-[#292f36] hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Next
+          </button>
+        </div>
       </div>
     </div>
   );
