@@ -80,6 +80,56 @@ export const Results = ({ searchQuery, setSearchQuery }: { searchQuery: string; 
         <button className="bg-[#4fbfff] text-white px-4 py-1 text-[9px] font-black rounded-sm uppercase tracking-widest hover:bg-[#3dafee] shadow-md transition-all active:scale-95">Print</button>
       </PageHeader>
 
+      <div className="bg-[#1f282f] border border-gray-700 p-4 shadow-xl space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-[#ffde00] text-[10px] font-black uppercase tracking-widest italic">Cashbox Results Sync</h2>
+          <span className="text-[8px] text-gray-500 font-bold uppercase tracking-tighter">API: https://cashbox.kingsbet.com</span>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div className="md:col-span-2 space-y-1">
+            <label className="text-[8px] font-black text-gray-500 uppercase tracking-widest">Cashbox Auth Token</label>
+            <input 
+              value={cashboxToken}
+              onChange={(e) => setCashboxToken(e.target.value)}
+              placeholder="Enter token to override system default..."
+              className="w-full bg-[#161d23] border border-gray-700 text-gray-100 px-3 py-1.5 text-[10px] font-bold focus:outline-none focus:border-[#ffde00]"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[8px] font-black text-gray-500 uppercase tracking-widest">From</label>
+            <input 
+              type="date"
+              value={dtFrom}
+              onChange={(e) => setDtFrom(e.target.value)}
+              className="w-full bg-[#161d23] border border-gray-700 text-gray-100 px-3 py-1.5 text-[10px] font-bold focus:outline-none focus:border-[#ffde00]"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[8px] font-black text-gray-500 uppercase tracking-widest">Till</label>
+            <input 
+              type="date"
+              value={dtTill}
+              onChange={(e) => setDtTill(e.target.value)}
+              className="w-full bg-[#161d23] border border-gray-700 text-gray-100 px-3 py-1.5 text-[10px] font-bold focus:outline-none focus:border-[#ffde00]"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-700/50">
+          <button 
+            onClick={() => syncMutation.mutate()}
+            disabled={syncMutation.isPending || !cashboxToken}
+            className="flex items-center gap-2 bg-[#ffde00] text-black px-6 py-2 text-[10px] font-black uppercase italic tracking-widest hover:bg-[#e6c800] transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-[0_0_15px_rgba(255,222,0,0.2)]"
+          >
+            <RefreshCcw size={12} className={syncMutation.isPending ? 'animate-spin' : ''} />
+            {syncMutation.isPending ? 'Syncing...' : 'Sync Results'}
+          </button>
+        </div>
+        {syncMutation.isError && <p className="text-red-400 text-[8px] font-black uppercase text-right">Sync failed. Check token and connection.</p>}
+        {syncMutation.isSuccess && <p className="text-green-400 text-[8px] font-black uppercase text-right">Sync completed successfully.</p>}
+      </div>
+
       <div className="grid grid-cols-7 gap-0 border-b border-gray-700 bg-[#292f36] shadow-lg">
          {['SPORTS', 'KENO', 'DOGS', 'WOF', 'KABOOM', 'HORSES', 'TOTO'].map((tab, i) => (
            <button 

@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
-import { Search, Maximize2, User, LogOut } from 'lucide-react';
+import React, { useState } from 'react';
+import { Search, Maximize2, User, LogOut, Menu, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { Page } from '../types';
 import { useMe } from '../modules/auth/hooks';
 import { useCashierLimit } from '../modules/cashier/hooks';
@@ -20,6 +20,8 @@ interface NavbarProps {
 export const Navbar = ({ activePage, setActivePage, shortCode, setShortCode }: NavbarProps) => {
   const { data: me } = useMe();
   const { data: limitData } = useCashierLimit();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
 
   const navItems: { label: string, id: Page }[] = [
     { label: 'Dashboard', id: 'DASHBOARD' },
@@ -38,82 +40,134 @@ export const Navbar = ({ activePage, setActivePage, shortCode, setShortCode }: N
   };
 
   return (
-    <div className="bg-[#1f282f] text-gray-300 border-b border-gray-700/50 sticky top-0 z-40">
-      <div className="flex items-center justify-between px-3 sm:px-4 py-1 min-h-10 gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="flex flex-col leading-none cursor-pointer" onClick={() => setActivePage('DASHBOARD')}>
-            <span className="text-[#ffde00] font-black text-base italic tracking-tighter">mezzo.bet</span>
+    <div className="bg-[#1f282f] text-gray-300 border-b border-gray-700 sticky top-0 z-40 shadow-lg">
+      {/* Row 1: Logo, Nav, Status */}
+      <div className="flex items-center justify-between px-4 py-2 min-h-12 relative">
+        <div className="flex items-center gap-3 lg:gap-8 min-w-0">
+          <button 
+            className="lg:hidden p-1 text-gray-100 shrink-0"
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+          >
+            {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+
+          <div className="cursor-pointer shrink-0" onClick={() => setActivePage('DASHBOARD')}>
+            <span className="text-[#ffde00] font-black text-xl lg:text-2xl italic tracking-tighter">kingsbet</span>
           </div>
           
-          <nav className="hidden md:flex items-center gap-0.5">
+          <nav className="hidden lg:flex items-center gap-6">
             {navItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => setActivePage(item.id)}
-                className={`px-2 py-0.5 rounded-sm text-[10px] font-black uppercase transition-colors tracking-tight ${
+                className={`text-sm font-bold uppercase transition-colors tracking-tight ${
                   activePage === item.id 
-                    ? 'text-[#ffde00] bg-gray-700/50 shadow-inner' 
-                    : 'hover:text-white hover:bg-gray-800'
+                    ? 'text-[#ffde00]' 
+                    : 'text-gray-100 hover:text-[#ffde00]'
                 }`}
               >
                 {item.label}
               </button>
             ))}
           </nav>
-
-          {/* Mobile page selector */}
-          <div className="md:hidden">
-            <select
-              value={activePage}
-              onChange={(e) => setActivePage(e.target.value as Page)}
-              className="bg-[#3d4852] border border-gray-600 text-[11px] py-1 px-2 rounded-sm text-white focus:outline-none focus:border-[#4fbfff] max-w-[44vw]"
-            >
-              {navItems.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-          </div>
         </div>
 
-        <div className="flex items-center gap-3 text-[10px] tracking-tight shrink-0">
-          <div className="hidden sm:flex items-center gap-3">
-            <span className="text-[#3eda3e] font-black uppercase whitespace-nowrap">
-              CASHIER: {me?.displayName || me?.phoneNumber || '...'}
+        {/* Mobile Nav Menu Overlay */}
+        {isMenuOpen && (
+          <div className="absolute top-full left-0 w-full bg-[#1f282f] border-b border-gray-700 lg:hidden shadow-2xl flex flex-col p-4 gap-2 animate-in fade-in slide-in-from-top-2 z-50">
+            {navItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => {
+                  setActivePage(item.id);
+                  setIsMenuOpen(false);
+                }}
+                className={`text-left py-3 px-4 rounded-sm text-sm font-black uppercase transition-colors tracking-widest ${
+                  activePage === item.id 
+                    ? 'bg-[#ffde00] text-black' 
+                    : 'bg-[#2c353d] text-gray-100 hover:text-[#ffde00]'
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+            <div className="h-[1px] bg-gray-700 my-2" />
+            <button 
+              onClick={handleLogout}
+              className="flex items-center gap-3 text-left py-3 px-4 rounded-sm text-sm font-black uppercase text-red-400 bg-[#2c353d]"
+            >
+              <LogOut size={16} /> Logout
+            </button>
+          </div>
+        )}
+
+        <div className="flex items-center gap-3 lg:gap-8 text-[9px] lg:text-xs font-bold shrink-0">
+          <div className="hidden xs:flex flex-col items-end leading-tight">
+            <span className="text-[#3eda3e] uppercase tracking-wider font-black whitespace-nowrap">
+              FRANCHISE: MK4-1
+            </span>
+            <span className="text-[#ffde00] uppercase tracking-wider font-black whitespace-nowrap">
+              Limit: {limitData?.totalLimit || '0'}
             </span>
           </div>
-          <span className="text-[#ffde00] font-black uppercase whitespace-nowrap">
-            Limit: {limitData?.totalLimit || '0.00'}
-          </span>
-          <div className="flex items-center gap-3">
-            <User size={14} className="text-white cursor-pointer hover:text-[#ffde00]" />
-            <LogOut 
-              size={14} 
-              className="text-gray-500 cursor-pointer hover:text-red-500" 
-              onClick={handleLogout}
-            />
+          
+          <div className="flex items-center gap-2 lg:gap-4 text-gray-100">
+            <button 
+              onClick={() => setIsSearchExpanded(!isSearchExpanded)}
+              className="lg:hidden p-1.5 bg-[#333c44] rounded-sm text-[#ffde00] border border-gray-600 shadow-sm mr-1"
+            >
+              {isSearchExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </button>
+
+            <div className="hidden sm:flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity">
+              <div className="w-6 h-4 bg-blue-600 relative overflow-hidden flex flex-col">
+                <div className="h-full bg-red-600 w-1/3 self-center"></div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 lg:gap-4">
+              <User size={18} className="cursor-pointer hover:text-[#ffde00]" />
+              <LogOut 
+                size={18} 
+                className="cursor-pointer hover:text-red-500 hidden lg:block" 
+                onClick={handleLogout}
+              />
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="bg-[#333c44] px-3 sm:px-4 py-2 flex items-center gap-2 border-t border-gray-700/50 flex-wrap">
-        {/* Secondary Bar - Kept for UI Consistency */}
-        <div className="relative w-full sm:w-48">
-          <input 
-            placeholder="Event Short Code" 
-            value={shortCode}
-            onChange={(e) => setShortCode(e.target.value)}
-            className="w-full bg-[#3d4852] border border-gray-600 text-[11px] py-1 px-3 pr-8 rounded-sm text-white placeholder-gray-400 focus:outline-none focus:border-[#4fbfff]"
-          />
-          <Search size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400" />
-        </div>
-        <div className="sm:ml-auto flex items-center gap-1 cursor-pointer hover:text-white transition-colors group">
-          <span className="text-[11px] font-black uppercase text-gray-300 tracking-tighter">SECURE CONNECTION</span>
-          <div className="bg-white/10 p-0.5 rounded">
-            <Maximize2 size={9} className="text-gray-300" />
+      {/* Row 2: Search Boxes, Employee Login - Toggleable on mobile */}
+      <div className={`bg-[#333c44] px-4 py-2.5 flex-col lg:flex-row items-center justify-between border-t border-gray-700/30 gap-4 ${isSearchExpanded ? 'flex' : 'hidden lg:flex'}`}>
+        <div className="flex flex-col sm:flex-row items-center gap-2 w-full lg:max-w-3xl">
+          <div className="relative w-full sm:flex-1">
+            <input 
+              placeholder="Event Short Code" 
+              value={shortCode}
+              onChange={(e) => setShortCode(e.target.value)}
+              className="w-full bg-[#1f282f] border border-gray-600 text-sm py-2 px-3 pr-9 rounded-sm text-white placeholder-gray-400 focus:outline-none focus:border-[#ffde00]"
+            />
+            <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-100" />
+          </div>
+          <div className="relative w-full sm:flex-1">
+            <input 
+              placeholder="Live" 
+              className="w-full bg-[#1f282f] border border-gray-600 text-sm py-2 px-3 pr-9 rounded-sm text-white placeholder-gray-400 focus:outline-none"
+            />
+            <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-100" />
+          </div>
+          <div className="relative w-full sm:flex-1">
+            <input 
+              placeholder="Event Name" 
+              className="w-full bg-[#1f282f] border border-gray-600 text-sm py-2 px-3 pr-9 rounded-sm text-white placeholder-gray-400 focus:outline-none"
+            />
+            <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-100" />
           </div>
         </div>
+        
+        <button className="flex items-center gap-2 text-xs font-black uppercase text-white hover:text-[#ffde00] transition-colors bg-[#1f282f] px-4 py-2 rounded-sm border border-gray-600 w-full lg:w-auto justify-center">
+          <span>Employee Login</span>
+          <User size={14} />
+        </button>
       </div>
     </div>
   );

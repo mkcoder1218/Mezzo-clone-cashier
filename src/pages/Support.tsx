@@ -38,10 +38,11 @@ export const Support = () => {
              <MessageSquare size={44} className="text-gray-500" />
            </div>
            <h2 className="text-lg font-black text-gray-400 uppercase tracking-tighter mb-2">Support Chat</h2>
-           <p className="text-[9px] text-gray-500 italic uppercase font-black tracking-widest">Powered by mezzo.bet Internal Support System</p>
+           <p className="text-[9px] text-gray-500 italic uppercase font-black tracking-widest">Powered by kingsbet Internal Support System</p>
            <span className="text-[8px] text-gray-600 mt-10 bg-gray-800/50 px-4 py-1.5 rounded-full uppercase tracking-widest">Select a channel to start chatting</span>
         </div>
       </div>
     </div>
   );
 };
+

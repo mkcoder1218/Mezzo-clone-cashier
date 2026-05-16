@@ -27,7 +27,7 @@ export const TicketModal = ({ isOpen, onClose }: TicketModalProps) => {
         
         <div className="p-3 bg-white flex flex-col items-center">
           <div className="border border-gray-800 rounded-lg p-2 w-full flex flex-col items-center text-gray-800 mb-3 bg-white shadow-sm">
-            <span className="text-lg font-black italic tracking-tighter mb-0 leading-none">mezzo</span>
+            <span className="text-lg font-black italic tracking-tighter mb-0 leading-none">kings</span>
             <span className="text-lg font-black italic tracking-tighter mt-0 leading-none border-t border-gray-800 w-full text-center">bet</span>
           </div>
           

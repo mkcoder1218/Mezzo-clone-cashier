@@ -27,9 +27,9 @@ export const SignIn = ({ setCurrentPage }: SignInProps) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-[#2c353d] flex items-center justify-center p-4">
-       <div className="flex w-full max-w-3xl h-[400px] shadow-[0_0_80px_rgba(0,0,0,0.6)] rounded-lg overflow-hidden border border-gray-700/50 animate-in fade-in zoom-in duration-500">
-          <div className="w-1/2 bg-[#5d5a57] p-12 flex flex-col justify-center gap-8 border-r border-gray-700/30">
+    <div className="fixed inset-0 bg-[#2c353d] flex items-center justify-center p-4 overflow-y-auto">
+       <div className="flex flex-col md:flex-row w-full max-w-3xl min-h-[400px] shadow-[0_0_80px_rgba(0,0,0,0.6)] rounded-lg overflow-hidden border border-gray-700/50 animate-in fade-in zoom-in duration-500">
+          <div className="w-full md:w-1/2 bg-[#5d5a57] p-8 md:p-12 flex flex-col justify-center gap-8 border-b md:border-b-0 md:border-r border-gray-700/30">
              <h1 className="text-[#d8d8d8] text-xl font-black uppercase tracking-widest border-b-2 border-gray-400/30 pb-1 w-fit">Sign In</h1>
              <form onSubmit={handleLogin} className="space-y-6">
                 <div className="space-y-1">
@@ -61,10 +61,10 @@ export const SignIn = ({ setCurrentPage }: SignInProps) => {
                 </button>
              </form>
           </div>
-          <div className="w-1/2 bg-[#2c313a] flex flex-col items-center justify-center p-8 relative overflow-hidden">
+          <div className="w-full md:w-1/2 bg-[#2c313a] flex flex-col items-center justify-center p-8 relative overflow-hidden min-h-[200px] md:min-h-0">
              <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent"></div>
              <div className="relative z-10 flex flex-col items-center text-center">
-                <span className="text-[#ffde00] text-3xl font-black italic tracking-tighter drop-shadow-[0_8px_10px_rgba(0,0,0,0.8)] filter brightness-110">mezzo.bet</span>
+                <span className="text-[#ffde00] text-3xl font-black italic tracking-tighter drop-shadow-[0_8px_10px_rgba(0,0,0,0.8)] filter brightness-110">cash box</span>
                 <span className="text-gray-500 text-[7px] uppercase font-black tracking-[1em] mt-3 ml-4">Management</span>
              </div>
              <div className="absolute bottom-6 text-[8px] text-gray-600 uppercase tracking-widest font-bold opacity-30">Security v2.4.0 • Encrypted Connection</div>

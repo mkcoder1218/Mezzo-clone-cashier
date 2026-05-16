@@ -44,7 +44,7 @@ export default function App() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#2c353d] flex items-center justify-center">
-        <div className="text-[#ffde00] font-black animate-pulse">LOADING MEZZO...</div>
+        <div className="text-[#ffde00] font-black animate-pulse">LOADING CASH BOX...</div>
       </div>
     );
   }
@@ -71,11 +71,11 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#2c353d] text-gray-100 font-sans selection:bg-[#ffde00] selection:text-black">
+    <div className="h-screen flex flex-col bg-[#2c353d] text-gray-200 font-sans selection:bg-[#ffde00] selection:text-black">
       {currentPage !== 'SIGN_IN' && (
         <>
           <Navbar activePage={currentPage} setActivePage={setCurrentPage} shortCode={searchQuery} setShortCode={setSearchQuery} />
-          <div className="max-w-[1920px] mx-auto p-4 lg:p-6 h-[calc(100vh-8.5rem)] overflow-y-auto">
+          <div className="max-w-[1920px] w-full mx-auto p-4 lg:p-6 flex-1 overflow-y-auto">
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentPage}
