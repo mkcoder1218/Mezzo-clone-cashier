@@ -106,6 +106,9 @@ export const Navbar = ({ activePage, setActivePage, shortCode, setShortCode }: N
             <span className="text-[#3eda3e] uppercase tracking-wider font-black whitespace-nowrap">
               FRANCHISE: MK4-1
             </span>
+            <span className="text-gray-100 uppercase tracking-wider font-black whitespace-nowrap">
+              {String((me as any)?.user?.displayName || (me as any)?.user?.display_name || "CASHIER")}
+            </span>
             <span className="text-[#ffde00] uppercase tracking-wider font-black whitespace-nowrap">
               Limit: {limitData?.totalLimit || '0'}
             </span>
