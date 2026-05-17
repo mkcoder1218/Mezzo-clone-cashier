@@ -102,7 +102,7 @@ export const Navbar = ({ activePage, setActivePage, shortCode, setShortCode }: N
         )}
 
         <div className="flex items-center gap-3 lg:gap-8 text-[9px] lg:text-xs font-bold shrink-0">
-          <div className="hidden xs:flex flex-col items-end leading-tight">
+          <div className="flex flex-col items-end leading-tight">
             <span className="text-[#3eda3e] uppercase tracking-wider font-black whitespace-nowrap">
               FRANCHISE: MK4-1
             </span>
