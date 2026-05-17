@@ -103,11 +103,8 @@ export const Navbar = ({ activePage, setActivePage, shortCode, setShortCode }: N
 
         <div className="flex items-center gap-3 lg:gap-8 text-[9px] lg:text-xs font-bold shrink-0">
           <div className="flex flex-col items-end leading-tight">
-            <span className="text-[#3eda3e] uppercase tracking-wider font-black whitespace-nowrap">
-              FRANCHISE: MK4-1
-            </span>
             <span className="text-gray-100 uppercase tracking-wider font-black whitespace-nowrap">
-              {String((me as any)?.user?.displayName || (me as any)?.user?.display_name || "CASHIER")}
+              {String((me as any)?.displayName || (me as any)?.display_name || (me as any)?.email || "CASHIER")}
             </span>
             <span className="text-[#ffde00] uppercase tracking-wider font-black whitespace-nowrap">
               Limit: {limitData?.totalLimit || '0'}
