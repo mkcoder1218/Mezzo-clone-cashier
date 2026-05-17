@@ -11,18 +11,13 @@ export function useMyPlacedBets() {
   });
 }
 
-export function useCashierBetStats() {
+export function useCashierBetStats(date?: string) {
+  const effectiveDate = date || new Date().toISOString().slice(0, 10);
   return useQuery({
-    queryKey: ["cashier-bet-stats"],
+    queryKey: ["cashier-stats", effectiveDate],
     queryFn: async () => {
-      const { data } = await api.get("/betslips/mine");
-      const slips = data.slips || [];
-      const count = slips.length;
-      const amount = slips.reduce((sum: number, s: any) => sum + Number(s?.stake || 0), 0);
-      // Revenue definition (for now): total stakes placed by this cashier.
-      // If payout tracking is added, this can evolve to stakes - payouts.
-      const revenue = amount;
-      return { count, amount, revenue };
+      const { data } = await api.get(`/cashier/stats`, { params: { date: effectiveDate } });
+      return data;
     },
   });
 }

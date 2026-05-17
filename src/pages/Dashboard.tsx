@@ -32,9 +32,10 @@ export const Dashboard = ({
   const [slipId, setSlipId] = useState<string | null>(null);
   const [outcomeId, setOutcomeId] = useState("");
   const [stake, setStake] = useState("50");
+  const [statsDate, setStatsDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
   
   const { data: limitData, refetch: refetchLimit } = useCashierLimit();
-  const { data: betStats } = useCashierBetStats();
+  const { data: betStats } = useCashierBetStats(statsDate);
   const depositMutation = useDeposit();
   const withdrawMutation = useWithdraw();
   const createSlip = useCreateSlip();
@@ -303,27 +304,30 @@ export const Dashboard = ({
         
         <div className="bg-[#3a444d] border border-gray-700 rounded-sm overflow-hidden shadow-md">
           <div className="bg-[#2c353d] px-5 py-2 flex items-center justify-between border-b border-gray-700">
-            <select className="bg-[#2c353d] text-white text-xs font-bold px-3 py-1 border border-gray-600 rounded-sm focus:outline-none cursor-pointer">
-              <option>2026-05-16</option>
-            </select>
+            <input
+              type="date"
+              value={statsDate}
+              onChange={(e) => setStatsDate(e.target.value)}
+              className="bg-[#2c353d] text-white text-xs font-bold px-3 py-1 border border-gray-600 rounded-sm focus:outline-none cursor-pointer"
+            />
             <div className="flex items-center">
               <span className="text-white text-xs font-bold uppercase tracking-tight mr-2">Revenue</span>
               <span className="bg-red-600 px-2 py-0.5 text-white rounded-sm font-bold text-xs min-w-[3rem] text-center shadow-inner">
-                {Number(betStats?.revenue || 0).toFixed(0)}
+                {Number((betStats as any)?.tickets?.revenue || 0).toFixed(0)}
               </span>
             </div>
           </div>
 
           <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-x-16 gap-y-2.5">
             {[
-              { label: 'Sport tickets count:', value: betStats?.count ?? 0 },
-              { label: 'Sport tickets amount:', value: Number(betStats?.amount || 0).toFixed(2) },
+              { label: 'Sport tickets count:', value: (betStats as any)?.tickets?.count ?? 0 },
+              { label: 'Sport tickets amount:', value: Number((betStats as any)?.tickets?.amount || 0).toFixed(2) },
               { label: 'Sport payout count:', value: 0 },
               { label: 'Sport payout amount:', value: 0 },
-              { label: 'Number of deposits:', value: 0 },
-              { label: 'Amount of deposits:', value: 0 },
-              { label: 'Number of withdrawals:', value: 0 },
-              { label: 'Amount of withdrawals:', value: 0 },
+              { label: 'Number of deposits:', value: (betStats as any)?.deposits?.count ?? 0 },
+              { label: 'Amount of deposits:', value: Number((betStats as any)?.deposits?.amount || 0).toFixed(2) },
+              { label: 'Number of withdrawals:', value: (betStats as any)?.withdrawals?.count ?? 0 },
+              { label: 'Amount of withdrawals:', value: Number((betStats as any)?.withdrawals?.amount || 0).toFixed(2) },
             ].map((stat, i) => (
               <div key={i} className="flex justify-between items-center border-b border-gray-700/30 sm:border-0 pb-1 sm:pb-0">
                 <span className="text-xs sm:text-sm text-gray-100 font-bold">{stat.label}</span>
