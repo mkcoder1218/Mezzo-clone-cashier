@@ -222,6 +222,12 @@ export const Dashboard = ({
         setOfflineLookupMessage(`Code ${res.ticket.shortCode} already used.`);
         return;
       }
+
+      const payloadStake = res.ticket?.payload?.stake;
+      if (payloadStake !== null && payloadStake !== undefined && !Number.isNaN(Number(payloadStake))) {
+        setStake(String(payloadStake));
+      }
+
       const selections = res.ticket?.payload?.selections || [];
       if (!selections.length) {
         setOfflineLookupMessage("No selections found for this code.");
