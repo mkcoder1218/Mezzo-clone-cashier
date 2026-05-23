@@ -19,7 +19,7 @@ export const SignIn = ({ setCurrentPage }: SignInProps) => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await loginMutation.mutateAsync({ phoneNumber: cashierName, password });
+      await loginMutation.mutateAsync({ phoneNumber: cashierName.trim(), password });
       setCurrentPage('DASHBOARD');
     } catch (err: any) {
       alert(err.response?.data?.message || 'Login failed');
@@ -33,10 +33,10 @@ export const SignIn = ({ setCurrentPage }: SignInProps) => {
              <h1 className="text-[#d8d8d8] text-xl font-black uppercase tracking-widest border-b-2 border-gray-400/30 pb-1 w-fit">Sign In</h1>
              <form onSubmit={handleLogin} className="space-y-6">
                 <div className="space-y-1">
-                  <label className="text-[11px] text-[#e0e0e0] font-black uppercase tracking-widest opacity-70">Cashier Name</label>
+                  <label className="text-[11px] text-[#e0e0e0] font-black uppercase tracking-widest opacity-70">Display Name</label>
                   <input 
                     type="text"
-                    placeholder="cashier_1"
+                    placeholder="Cashier 1"
                     value={cashierName}
                     onChange={(e) => setCashierName(e.target.value)}
                     className="w-full bg-[#ecf2f8] p-2 text-sm font-bold text-gray-800 focus:outline-none shadow-[inset_0_1px_4px_rgba(0,0,0,0.15)] rounded-sm border-2 border-transparent focus:border-[#4fbfff] transition-all"
