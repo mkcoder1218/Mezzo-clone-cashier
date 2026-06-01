@@ -72,10 +72,19 @@ export const Dashboard = ({
   };
 
   const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
+    const raw = searchQuery.trim();
+    if (!raw) return;
     setIsSearching(true);
     try {
-      const { data } = await api.get(`/users/search?q=${searchQuery}`);
+      const normalizedQuery = (() => {
+        // Normalize Ethiopian numbers: 09xxxxxxxx -> +2519xxxxxxxx, 0xxxxxxxxx -> +251xxxxxxxxx
+        const q = raw.replace(/\s+/g, "");
+        if (/^0\d{8,12}$/.test(q)) return `+251${q.slice(1)}`;
+        if (/^251\d{8,12}$/.test(q)) return `+${q}`;
+        return q;
+      })();
+
+      const { data } = await api.get(`/users/search?q=${encodeURIComponent(normalizedQuery)}`);
       setFoundUser(data.user);
       setWithdrawAmount("");
       setWithdrawMessage("");
@@ -479,11 +488,26 @@ export const Dashboard = ({
                     <div className="max-h-72 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
                       {slip?.BetSelections?.map((s: any) => (
                         <div key={s.id} className="bg-[#2c353d] p-3 rounded-sm border border-gray-700 shadow-sm">
-                          <div className="font-bold text-xs text-gray-100 leading-tight">{s?.Outcome?.Market?.Fixture?.homeTeam?.name} vs {s?.Outcome?.Market?.Fixture?.awayTeam?.name}</div>
-                          <div className="text-[11px] text-gray-400 mt-1 uppercase font-bold">{s?.Outcome?.Market?.name}: {s?.Outcome?.name}</div>
+                          {(() => {
+                            const fixture = s?.Outcome?.Market?.Fixture || s?.snapshot?.fixture || {};
+                            const home = fixture?.homeTeam?.name || fixture?.homeTeamName || "";
+                            const away = fixture?.awayTeam?.name || fixture?.awayTeamName || "";
+                            const marketName = s?.Outcome?.Market?.name || s?.snapshot?.market?.name || "";
+                            const outcomeName = s?.Outcome?.name || s?.snapshot?.outcome?.name || "";
+                            return (
+                              <>
+                                <div className="font-bold text-xs text-gray-100 leading-tight">
+                                  {home && away ? `${home} vs ${away}` : "Selection"}
+                                </div>
+                                <div className="text-[11px] text-gray-400 mt-1 uppercase font-bold">
+                                  {marketName ? `${marketName}: ` : ""}{outcomeName || ""}
+                                </div>
+                              </>
+                            );
+                          })()}
                           <div className="text-[#ffde00] font-black text-xs mt-1.5 flex items-center gap-1">
                             <span className="text-gray-500 text-[9px]">@</span>
-                            {Number(s.oddsAtPlacement || 1).toFixed(2)}
+                            {Number(s.oddsAtPlacement || s?.snapshot?.outcome?.odds || 1).toFixed(2)}
                           </div>
                         </div>
                       ))}
