@@ -88,7 +88,13 @@ export const Dashboard = ({
       setFoundUser(data.user);
       setWithdrawAmount("");
       setWithdrawMessage("");
-      if (data.user?.id) await refreshWithdrawAllowed(data.user.id);
+      if (data.user?.id) {
+        await refreshWithdrawAllowed(data.user.id);
+        // Auto-create slip after user lookup to remove the extra "Create Slip" step.
+        const nextSlip = await createSlip.mutateAsync({ userId: data.user.id });
+        if (nextSlip?.id) setSlipId(nextSlip.id);
+        refetchSlip();
+      }
     } catch (err) {
       setFoundUser(null);
       alert('User not found');
@@ -451,7 +457,15 @@ export const Dashboard = ({
                 <span className="font-black text-[#ffde00] uppercase text-xs tracking-wider">
                   {foundUser ? `USER: ${foundUser.phoneNumber || foundUser.displayName}` : "OFFLINE TICKET"}
                 </span>
-                <button onClick={() => setFoundUser(null)} className="text-gray-400 hover:text-white text-sm">✕</button>
+                <button
+                  onClick={() => {
+                    setFoundUser(null);
+                    setSlipId(null);
+                  }}
+                  className="text-gray-400 hover:text-white text-sm"
+                >
+                  ✕
+                </button>
               </div>
               <div className="p-5 space-y-5">
                 {foundUser ? (
@@ -472,7 +486,7 @@ export const Dashboard = ({
                           onClick={handleDeposit}
                           className="bg-[#4fbfff] hover:bg-[#3dafee] text-white text-xs px-4 py-1 rounded-sm font-black h-9 uppercase shadow-sm transition-all active:scale-95"
                         >
-                          FILL
+                          DEPOSIT
                         </button>
                       </div>
                     </div>
@@ -533,14 +547,7 @@ export const Dashboard = ({
                       </div>
                     </div>
                   </div>
-                ) : (
-                  <button 
-                    onClick={handleCreateSlip} 
-                    className="w-full bg-[#ffde00] hover:bg-[#e6c800] text-black text-xs font-black py-3 rounded-sm uppercase tracking-widest transition-all active:scale-95 shadow-md"
-                  >
-                    Create Slip
-                  </button>
-                )}
+                ) : null}
               </div>
             </div>
           ) : (
