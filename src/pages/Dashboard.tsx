@@ -24,6 +24,8 @@ export const Dashboard = ({
 }: DashboardProps) => {
   const [foundUser, setFoundUser] = useState<any>(null);
   const [isSearching, setIsSearching] = useState(false);
+  const [withdrawSearchQuery, setWithdrawSearchQuery] = useState("");
+  const [activeUserAction, setActiveUserAction] = useState<"deposit" | "withdraw" | null>(null);
   const [depositAmount, setDepositAmount] = useState('30');
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [withdrawMessage, setWithdrawMessage] = useState<string>('');
@@ -71,33 +73,58 @@ export const Dashboard = ({
     }
   };
 
-  const handleSearch = async () => {
+  const normalizeSearchQuery = (rawInput: string) => {
+    const raw = rawInput.trim();
+    if (!raw) return "";
+    // Normalize Ethiopian numbers: 09xxxxxxxx -> +2519xxxxxxxx, 0xxxxxxxxx -> +251xxxxxxxxx
+    const q = raw.replace(/\s+/g, "");
+    if (/^0\d{8,12}$/.test(q)) return `+251${q.slice(1)}`;
+    if (/^251\d{8,12}$/.test(q)) return `+${q}`;
+    return q;
+  };
+
+  const lookupUser = async (rawInput: string) => {
+    const normalizedQuery = normalizeSearchQuery(rawInput);
+    if (!normalizedQuery) return null;
+    const { data } = await api.get(`/users/search?q=${encodeURIComponent(normalizedQuery)}`);
+    return data.user;
+  };
+
+  const handleDepositSearch = async () => {
     const raw = searchQuery.trim();
     if (!raw) return;
     setIsSearching(true);
     try {
-      const normalizedQuery = (() => {
-        // Normalize Ethiopian numbers: 09xxxxxxxx -> +2519xxxxxxxx, 0xxxxxxxxx -> +251xxxxxxxxx
-        const q = raw.replace(/\s+/g, "");
-        if (/^0\d{8,12}$/.test(q)) return `+251${q.slice(1)}`;
-        if (/^251\d{8,12}$/.test(q)) return `+${q}`;
-        return q;
-      })();
-
-      const { data } = await api.get(`/users/search?q=${encodeURIComponent(normalizedQuery)}`);
-      setFoundUser(data.user);
+      const user = await lookupUser(raw);
+      setFoundUser(user);
+      setActiveUserAction("deposit");
+      setSlipId(null); // Hide betslip when doing deposit/withdraw flows
       setWithdrawAmount("");
       setWithdrawMessage("");
-      if (data.user?.id) {
-        await refreshWithdrawAllowed(data.user.id);
-        // Auto-create slip after user lookup to remove the extra "Create Slip" step.
-        const nextSlip = await createSlip.mutateAsync({ userId: data.user.id });
-        if (nextSlip?.id) setSlipId(nextSlip.id);
-        refetchSlip();
-      }
+      if (user?.id) await refreshWithdrawAllowed(user.id);
     } catch (err) {
       setFoundUser(null);
       alert('User not found');
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleWithdrawSearch = async () => {
+    const raw = withdrawSearchQuery.trim();
+    if (!raw) return;
+    setIsSearching(true);
+    try {
+      const user = await lookupUser(raw);
+      setFoundUser(user);
+      setActiveUserAction("withdraw");
+      setSlipId(null); // Hide betslip when doing deposit/withdraw flows
+      setWithdrawAmount("");
+      setWithdrawMessage("");
+      if (user?.id) await refreshWithdrawAllowed(user.id);
+    } catch {
+      setFoundUser(null);
+      alert("User not found");
     } finally {
       setIsSearching(false);
     }
@@ -373,11 +400,11 @@ export const Dashboard = ({
                   placeholder="User Phone"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                  onKeyDown={(e) => e.key === 'Enter' && handleDepositSearch()}
                   className="flex-1 bg-white text-gray-800 py-2 px-3 text-sm focus:outline-none rounded-l-sm h-9"
                 />
                 <button 
-                  onClick={handleSearch} 
+                  onClick={handleDepositSearch} 
                   disabled={isSearching}
                   className="bg-[#4fbfff] hover:bg-[#3dafee] px-4 transition-colors rounded-r-sm disabled:opacity-50 h-9 flex items-center justify-center"
                 >
@@ -388,18 +415,18 @@ export const Dashboard = ({
 
             {/* Withdraw Search */}
             <div className="bg-[#3a444d] p-5 rounded-sm border border-gray-700 shadow-sm">
-              <label className="text-xs text-gray-300 font-bold mb-2 block uppercase tracking-wide">Withdraw</label>
+              <label className="text-xs text-gray-300 font-bold mb-2 block uppercase tracking-wide">Withdraw (search by ID, phone number or username)</label>
               <div className="flex items-center">
                 <input
-                  placeholder="Transaction Token"
-                  value={withdrawAmount}
-                  onChange={(e) => setWithdrawAmount(e.target.value)}
+                  placeholder="User Phone"
+                  value={withdrawSearchQuery}
+                  onChange={(e) => setWithdrawSearchQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleWithdrawSearch()}
                   className="flex-1 bg-white text-gray-800 py-2 px-3 text-sm focus:outline-none rounded-l-sm h-9"
-                  disabled={!foundUser || !withdrawAllowed || withdrawMutation.isPending}
                 />
                 <button
-                  onClick={handleWithdraw}
-                  disabled={!foundUser || !withdrawAllowed || withdrawMutation.isPending}
+                  onClick={handleWithdrawSearch}
+                  disabled={isSearching}
                   className="bg-[#4fbfff] hover:bg-[#3dafee] px-4 transition-colors rounded-r-sm disabled:opacity-50 h-9 flex items-center justify-center"
                 >
                   <Search size={18} className="text-white" />
@@ -475,25 +502,50 @@ export const Dashboard = ({
                       <span className="text-[#3eda3e] font-black text-lg">{foundUser.balance}</span>
                     </div>
 
-                    <div className="bg-[#2c353d] border border-gray-600 p-3 rounded-sm space-y-3 shadow-inner">
-                      <div className="flex items-center gap-2">
-                        <input
-                          value={depositAmount}
-                          onChange={(e) => setDepositAmount(e.target.value)}
-                          className="flex-1 bg-white text-gray-800 text-sm px-3 py-1.5 rounded-sm focus:outline-none h-9 font-bold"
-                        />
-                        <button
-                          onClick={handleDeposit}
-                          className="bg-[#4fbfff] hover:bg-[#3dafee] text-white text-xs px-4 py-1 rounded-sm font-black h-9 uppercase shadow-sm transition-all active:scale-95"
-                        >
-                          DEPOSIT
-                        </button>
+                    {activeUserAction === "deposit" ? (
+                      <div className="bg-[#2c353d] border border-gray-600 p-3 rounded-sm space-y-3 shadow-inner">
+                        <div className="flex items-center gap-2">
+                          <input
+                            value={depositAmount}
+                            onChange={(e) => setDepositAmount(e.target.value)}
+                            className="flex-1 bg-white text-gray-800 text-sm px-3 py-1.5 rounded-sm focus:outline-none h-9 font-bold"
+                          />
+                          <button
+                            onClick={handleDeposit}
+                            className="bg-[#4fbfff] hover:bg-[#3dafee] text-white text-xs px-4 py-1 rounded-sm font-black h-9 uppercase shadow-sm transition-all active:scale-95"
+                          >
+                            DEPOSIT
+                          </button>
+                        </div>
                       </div>
-                    </div>
+                    ) : null}
+
+                    {activeUserAction === "withdraw" ? (
+                      <div className="bg-[#2c353d] border border-gray-600 p-3 rounded-sm space-y-3 shadow-inner">
+                        <div className="flex items-center gap-2">
+                          <input
+                            placeholder={withdrawAllowed ? `Max ${withdrawable}` : "Withdrawal not allowed"}
+                            value={withdrawAmount}
+                            onChange={(e) => setWithdrawAmount(e.target.value)}
+                            className="flex-1 bg-white text-gray-800 text-sm px-3 py-1.5 rounded-sm focus:outline-none h-9 font-bold"
+                            disabled={!withdrawAllowed || withdrawMutation.isPending}
+                          />
+                          <button
+                            onClick={handleWithdraw}
+                            disabled={!withdrawAllowed || withdrawMutation.isPending}
+                            className="bg-[#4fbfff] hover:bg-[#3dafee] text-white text-xs px-4 py-1 rounded-sm font-black h-9 uppercase shadow-sm transition-all active:scale-95 disabled:opacity-50"
+                          >
+                            WITHDRAW
+                          </button>
+                        </div>
+                        {withdrawMessage ? <div className="text-[11px] text-gray-300 font-bold">{withdrawMessage}</div> : null}
+                      </div>
+                    ) : null}
                   </>
                 ) : null}
 
-                {slipId ? (
+                {/* Only show betslip UI when working with offline tickets (no user selected) */}
+                {slipId && !foundUser ? (
                   <div className="space-y-4 pt-4 border-t border-gray-700">
                     <div className="flex justify-between items-center">
                       <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">BET SLIP</span>
