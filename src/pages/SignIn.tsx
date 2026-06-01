@@ -19,7 +19,7 @@ export const SignIn = ({ setCurrentPage }: SignInProps) => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await loginMutation.mutateAsync({ phoneNumber: cashierName.trim(), password });
+      await loginMutation.mutateAsync({ displayName: cashierName.trim(), password });
       setCurrentPage('DASHBOARD');
     } catch (err: any) {
       alert(err.response?.data?.message || 'Login failed');
