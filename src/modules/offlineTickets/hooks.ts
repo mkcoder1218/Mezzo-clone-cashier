@@ -10,3 +10,11 @@ export function useLookupOfflineTicket() {
   });
 }
 
+export function useUseOfflineTicket() {
+  return useMutation({
+    mutationFn: async (code: string) => {
+      const { data } = await api.post(`/offline-tickets/${encodeURIComponent(code)}/use`);
+      return data as { ticket: { shortCode: string; expiresAt: string; usedAt?: string | null } };
+    }
+  });
+}

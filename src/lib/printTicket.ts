@@ -17,6 +17,9 @@ type SlipSelection = {
 
 type SlipForPrint = {
   id: string;
+  shortCode?: string | null;
+  printCopy?: boolean;
+  totalOdds?: string | number | null;
   stake?: string | number | null;
   potentialPayout?: string | number | null;
   placedAt?: string | null;
@@ -42,15 +45,32 @@ function formatDateTime(v?: string | null) {
   if (!v) return "";
   const d = new Date(v);
   if (Number.isNaN(d.getTime())) return String(v);
-  return d.toLocaleString();
+  return d.toLocaleString(undefined, {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
 }
 
 export function printKingsBetSlip(slip: SlipForPrint) {
   const selections = slip.BetSelections || [];
-  const totalOdds = selections.reduce((p, s) => p * Number(s.oddsAtPlacement || s?.snapshot?.outcome?.odds || 1), 1);
+  const getSelectionOdds = (s: SlipSelection) => {
+    const raw = Number(s.oddsAtPlacement || s?.snapshot?.outcome?.displayOdds || s?.snapshot?.outcome?.odds || 1);
+    return Number.isFinite(raw) && raw > 0 ? Number(raw.toFixed(2)) : 1;
+  };
+  const calculatedTotalOdds = selections.reduce((p, s) => p * getSelectionOdds(s), 1);
+  const totalOdds = Number(slip.totalOdds || calculatedTotalOdds);
   const stake = Number(slip.stake || 0) || 0;
   const possibleWinning = slip.potentialPayout != null ? Number(slip.potentialPayout) : stake * totalOdds;
-  const ticketCode = slip.id.slice(0, 12).toUpperCase();
+  const ticketCode = String(slip.shortCode || slip.id.slice(0, 12)).toUpperCase();
+  const copyLabel = slip.printCopy ? " // COPY" : "";
+  const slipRef = String(slip.id || "").slice(0, 12).toUpperCase();
+  const issuedAt = slip.placedAt || new Date().toISOString();
+  const validUntil = new Date(new Date(issuedAt).getTime() + 30 * 24 * 3600 * 1000).toISOString();
+  const logoUrl = `${window.location.origin}/brand/king5bet-logo-black.png`;
 
   let barcodeSvg = "";
   try {
@@ -76,15 +96,14 @@ export function printKingsBetSlip(slip: SlipForPrint) {
 
     const marketName = s?.Outcome?.Market?.name || s?.snapshot?.market?.name || "";
     const outcomeName = s?.Outcome?.name || s?.snapshot?.outcome?.name || "";
-    const odds = Number(s.oddsAtPlacement || s?.snapshot?.outcome?.odds || 1).toFixed(2);
+    const odds = getSelectionOdds(s).toFixed(2);
 
     return `
       <div class="sel">
-        <div class="line dim">${escapeHtml(String(leagueName))}</div>
-        <div class="line">${escapeHtml(`${home} v ${away}`)}</div>
-        <div class="line dim">${escapeHtml(formatDateTime(startsAt))}</div>
-        <div class="line">${escapeHtml(marketName)} <span class="odds">${escapeHtml(odds)}</span></div>
-        <div class="line pick">${escapeHtml(outcomeName)}</div>
+        <div class="line">${escapeHtml(String(leagueName || "Sport"))}</div>
+        <div class="line">${escapeHtml(`${formatDateTime(startsAt)} / ${home} V ${away}`)}</div>
+        <div class="line code">${escapeHtml(String(s?.snapshot?.market?.key || ""))} ${escapeHtml(marketName)}</div>
+        <div class="line pick"><span>${escapeHtml(outcomeName)}</span><span class="odds">${escapeHtml(odds)}</span></div>
       </div>
     `;
   }).join("\n");
@@ -96,43 +115,48 @@ export function printKingsBetSlip(slip: SlipForPrint) {
     <meta charset="utf-8" />
     <title>KingsBet Ticket</title>
     <style>
-      @page { margin: 6mm; }
-      body { font-family: Arial, Helvetica, sans-serif; color: #111; display: flex; justify-content: center; }
-      .ticket { width: 72mm; }
-      .brand { text-align: center; font-weight: 900; font-size: 18px; letter-spacing: 0.5px; }
-      .sub { text-align: center; font-weight: 700; font-size: 11px; margin-top: 2px; }
-      .barcode { display: flex; justify-content: center; margin-top: 6px; }
-      .barcode svg { width: 66mm; height: auto; }
-      .meta { margin-top: 10px; font-size: 10px; font-weight: 700; }
-      .meta .row { display: flex; justify-content: space-between; }
-      .hr { border-top: 1px dashed #666; margin: 8px 0; }
-      .sel { padding: 8px 0; border-bottom: 1px dashed #999; }
-      .line { font-size: 10px; font-weight: 700; }
-      .dim { color: #444; font-weight: 600; }
-      .pick { margin-top: 2px; }
-      .odds { float: right; font-weight: 900; }
-      .totals { margin-top: 8px; font-size: 11px; font-weight: 900; }
-      .foot { margin-top: 10px; font-size: 9px; color: #333; font-weight: 700; text-align: center; }
+      @page { margin: 4mm; }
+      body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #111; display: flex; justify-content: center; background: #fff; }
+      .ticket { width: 72mm; padding: 2mm 1mm; }
+      .brand { display: flex; justify-content: center; margin: 0 auto 2mm; }
+      .brand img { width: 44mm; max-height: 20mm; object-fit: contain; }
+      .barcode { display: flex; justify-content: center; margin: 0 0 2mm; }
+      .barcode svg { width: 66mm; height: 14mm; }
+      .serial { text-align: center; font-size: 11px; font-weight: 800; margin-bottom: 1mm; }
+      .meta { font-size: 10px; font-weight: 700; line-height: 1.35; }
+      .meta .row { display: flex; gap: 2mm; }
+      .meta .label { min-width: 19mm; }
+      .hr { border-top: 1px solid #222; margin: 1mm 0; }
+      .sel { padding: 1.4mm 0 1mm; border-bottom: 1px solid #222; }
+      .line { font-size: 10px; font-weight: 700; line-height: 1.28; }
+      .code { margin-top: 0.5mm; }
+      .pick { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 0.5mm; font-weight: 900; }
+      .odds { min-width: 12mm; text-align: right; font-weight: 900; }
+      .totals { margin-top: 1.5mm; font-size: 11px; font-weight: 900; line-height: 1.45; }
+      .totals .row { display:flex; justify-content:space-between; border-bottom: 1px solid #222; }
+      .foot { margin-top: 2mm; font-size: 9px; color: #111; font-weight: 900; text-align: center; }
     </style>
   </head>
   <body>
     <div class="ticket">
-      <div class="brand">KingsBet</div>
-      <div class="sub">Bet Ticket</div>
+      <div class="brand"><img src="${escapeHtml(logoUrl)}" alt="KING5bet" /></div>
       ${barcodeSvg ? `<div class="barcode">${barcodeSvg}</div>` : ""}
+      <div class="serial">SPORT // ${escapeHtml(ticketCode)}${copyLabel}</div>
       <div class="meta">
-        <div class="row"><span>Ticket:</span><span>${escapeHtml(ticketCode)}</span></div>
-        <div class="row"><span>Date:</span><span>${escapeHtml(formatDateTime(slip.placedAt || new Date().toISOString()))}</span></div>
+        <div class="row"><span class="label">Cashier</span><span>${escapeHtml(String((slip as any).cashierName || "MK6-1"))}</span></div>
+        <div class="row"><span class="label">Date Issued:</span><span>${escapeHtml(formatDateTime(issuedAt))}</span></div>
+        <div class="row"><span class="label">Valid until:</span><span>${escapeHtml(formatDateTime(validUntil))}</span></div>
+        <div class="row"><span class="label">Short code:</span><span>${escapeHtml(ticketCode)}</span></div>
+        <div class="row"><span class="label">Slip ref:</span><span>${escapeHtml(slipRef)}</span></div>
       </div>
       <div class="hr"></div>
       ${rowsHtml}
-      <div class="hr"></div>
       <div class="totals">
-        <div class="row" style="display:flex;justify-content:space-between;"><span>Total Odds</span><span>${escapeHtml(totalOdds.toFixed(2))}</span></div>
-        <div class="row" style="display:flex;justify-content:space-between;"><span>Stake</span><span>${escapeHtml(stake.toFixed(2))}</span></div>
-        <div class="row" style="display:flex;justify-content:space-between;"><span>Possible Winning</span><span>${escapeHtml(possibleWinning.toFixed(2))}</span></div>
+        <div class="row"><span>Total: ${escapeHtml(stake.toFixed(2))} ETB</span><span></span></div>
+        <div class="row"><span>Total Odds:</span><span>${escapeHtml(totalOdds.toFixed(2))}</span></div>
+        <div class="row"><span>Possible Winning:</span><span>${escapeHtml(possibleWinning.toFixed(2))} ETB</span></div>
       </div>
-      <div class="foot">Good luck.</div>
+      <div class="foot">Call us on telegram with @king5bet</div>
     </div>
     <script>
       window.onload = () => {

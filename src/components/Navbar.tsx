@@ -52,7 +52,7 @@ export const Navbar = ({ activePage, setActivePage, shortCode, setShortCode }: N
           </button>
 
           <div className="cursor-pointer shrink-0" onClick={() => setActivePage('DASHBOARD')}>
-            <span className="text-[#ffde00] font-black text-xl lg:text-2xl italic tracking-tighter">kingsbet</span>
+            <img src="/brand/king5bet-logo.png" alt="KING5bet" className="h-8 lg:h-9 w-auto max-w-[150px] object-contain" />
           </div>
           
           <nav className="hidden lg:flex items-center gap-6">

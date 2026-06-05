@@ -9,7 +9,7 @@ import { PageHeader } from '../components/PageHeader';
 import { useCashierLimit, useDeposit, useWithdraw } from '../modules/cashier/hooks';
 import { useAddSelection, useBulkUpsertSelections, useCashierBetStats, useCreateSlip, usePlaceSlip, useSlip } from '../modules/bets/hooks';
 import { api } from '../lib/api';
-import { useLookupOfflineTicket } from "../modules/offlineTickets/hooks";
+import { useLookupOfflineTicket, useUseOfflineTicket } from "../modules/offlineTickets/hooks";
 import { printKingsBetSlip } from "../lib/printTicket";
 
 interface DashboardProps {
@@ -45,7 +45,9 @@ export const Dashboard = ({
   const bulkUpsert = useBulkUpsertSelections();
   const placeSlip = usePlaceSlip();
   const lookupOffline = useLookupOfflineTicket();
+  const useOfflineTicket = useUseOfflineTicket();
   const [offlineCode, setOfflineCode] = useState("");
+  const [loadedOfflineCode, setLoadedOfflineCode] = useState("");
   const [offlineLookupMessage, setOfflineLookupMessage] = useState("");
   const { data: slip, isLoading: slipLoading, refetch: refetchSlip } = useSlip(slipId);
   const [balanceModalOpen, setBalanceModalOpen] = useState(false);
@@ -215,10 +217,24 @@ export const Dashboard = ({
       // Some responses omit stake/potentialPayout; ensure they render on the ticket.
       if ((printable as any)?.stake == null) (printable as any).stake = n;
       if ((printable as any)?.potentialPayout == null && Array.isArray((printable as any)?.BetSelections)) {
-        const tot = (printable as any).BetSelections.reduce((p: number, s: any) => p * Number(s?.oddsAtPlacement || s?.snapshot?.outcome?.odds || 1), 1);
+        const tot = (printable as any).BetSelections.reduce((p: number, s: any) => {
+          const odds = Number(s?.oddsAtPlacement || s?.snapshot?.outcome?.displayOdds || s?.snapshot?.outcome?.odds || 1);
+          return p * (Number.isFinite(odds) && odds > 0 ? Number(odds.toFixed(2)) : 1);
+        }, 1);
+        (printable as any).totalOdds = Number(tot.toFixed(2));
         (printable as any).potentialPayout = Number((n * tot).toFixed(2));
       }
+      if (loadedOfflineCode) (printable as any).shortCode = loadedOfflineCode;
       printKingsBetSlip(printable);
+      if (loadedOfflineCode) {
+        try {
+          await useOfflineTicket.mutateAsync(loadedOfflineCode);
+        } catch (err) {
+          // Placement already succeeded; do not turn a receipt into a failed bet.
+          console.error("[offline-ticket-use]", err);
+        }
+        setLoadedOfflineCode("");
+      }
       setSlipId(null);
       refetchSlip();
       refetchLimit();
@@ -291,6 +307,7 @@ export const Dashboard = ({
 
       await bulkUpsert.mutateAsync({ slipId: activeSlipId, selections: payloadSelections });
       setOfflineLookupMessage(`Loaded ${payloadSelections.length} selections from ${res.ticket.shortCode}`);
+      setLoadedOfflineCode(String(res.ticket.shortCode || code).toUpperCase());
       setOfflineCode("");
       setSlipId(activeSlipId);
       refetchSlip();
