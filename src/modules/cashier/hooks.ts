@@ -41,8 +41,8 @@ export function useDeposit() {
 export function useWithdraw() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ userId, amount }: { userId: string; amount: number }) => {
-      const { data } = await api.post('/cashier/withdrawals', { userId, amount });
+    mutationFn: async ({ token }: { token: string }) => {
+      const { data } = await api.post('/cashier/withdrawals/redeem-token', { token });
       return data;
     },
     onSuccess: () => {

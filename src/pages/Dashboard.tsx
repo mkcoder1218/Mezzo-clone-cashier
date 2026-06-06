@@ -25,12 +25,10 @@ export const Dashboard = ({
   const [foundUser, setFoundUser] = useState<any>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [withdrawSearchQuery, setWithdrawSearchQuery] = useState("");
+  const [withdrawalInfo, setWithdrawalInfo] = useState<any>(null);
   const [activeUserAction, setActiveUserAction] = useState<"deposit" | "withdraw" | null>(null);
   const [depositAmount, setDepositAmount] = useState('30');
-  const [withdrawAmount, setWithdrawAmount] = useState('');
   const [withdrawMessage, setWithdrawMessage] = useState<string>('');
-  const [withdrawAllowed, setWithdrawAllowed] = useState<boolean>(false);
-  const [withdrawable, setWithdrawable] = useState<number>(0);
   const [slipId, setSlipId] = useState<string | null>(null);
   const [outcomeId, setOutcomeId] = useState("");
   const [stake, setStake] = useState("50");
@@ -64,15 +62,11 @@ export const Dashboard = ({
     return { code, message, status };
   };
 
-  const refreshWithdrawAllowed = async (userId: string) => {
-    try {
-      const { data } = await api.get(`/cashier/withdrawals/allowed?userId=${userId}`);
-      setWithdrawAllowed(!!data.allowed);
-      setWithdrawable(Number(data.withdrawable || 0));
-    } catch {
-      setWithdrawAllowed(false);
-      setWithdrawable(0);
-    }
+  const formatDateTime = (value: any) => {
+    if (!value) return "-";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "-";
+    return `${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
   };
 
   const normalizeSearchQuery = (rawInput: string) => {
@@ -101,9 +95,7 @@ export const Dashboard = ({
       setFoundUser(user);
       setActiveUserAction("deposit");
       setSlipId(null); // Hide betslip when doing deposit/withdraw flows
-      setWithdrawAmount("");
       setWithdrawMessage("");
-      if (user?.id) await refreshWithdrawAllowed(user.id);
     } catch (err) {
       setFoundUser(null);
       alert('User not found');
@@ -113,20 +105,17 @@ export const Dashboard = ({
   };
 
   const handleWithdrawSearch = async () => {
-    const raw = withdrawSearchQuery.trim();
-    if (!raw) return;
+    const token = withdrawSearchQuery.trim();
+    if (!token) return;
     setIsSearching(true);
+    setWithdrawMessage("");
+    setWithdrawalInfo(null);
     try {
-      const user = await lookupUser(raw);
-      setFoundUser(user);
-      setActiveUserAction("withdraw");
-      setSlipId(null); // Hide betslip when doing deposit/withdraw flows
-      setWithdrawAmount("");
-      setWithdrawMessage("");
-      if (user?.id) await refreshWithdrawAllowed(user.id);
-    } catch {
-      setFoundUser(null);
-      alert("User not found");
+      const { data } = await api.get(`/cashier/withdrawals/token?token=${encodeURIComponent(token)}`);
+      setWithdrawalInfo(data.request);
+    } catch (e: any) {
+      const msg = e?.response?.data?.error?.message || e?.response?.data?.message || e?.message || "Withdrawal token not found";
+      setWithdrawMessage(msg);
     } finally {
       setIsSearching(false);
     }
@@ -141,8 +130,6 @@ export const Dashboard = ({
       });
       setInfoModalText("Deposit successful.");
       setInfoModalOpen(true);
-      await refreshWithdrawAllowed(foundUser.id);
-      // Keep the user loaded so cashier can withdraw immediately if needed.
       refetchLimit();
     } catch (err: any) {
       const { code, message } = extractError(err);
@@ -164,21 +151,21 @@ export const Dashboard = ({
   };
 
   const handleWithdraw = async () => {
-    if (!foundUser?.id) return;
-    const amount = Number(withdrawAmount);
-    if (!Number.isFinite(amount) || amount <= 0) return;
+    const token = String(withdrawalInfo?.token || withdrawSearchQuery).trim();
+    if (!token) return;
     setWithdrawMessage("");
     try {
-      await withdrawMutation.mutateAsync({ userId: foundUser.id, amount });
-      setWithdrawMessage("Withdrawal successful.");
-      setWithdrawAmount("");
-      await refreshWithdrawAllowed(foundUser.id);
+      const res = await withdrawMutation.mutateAsync({ token });
+      const amount = Number(res?.result?.amount || 0).toFixed(2);
+      setWithdrawMessage(`Withdrawal successful. Paid ${amount} ETB.`);
+      setWithdrawSearchQuery("");
+      setWithdrawalInfo(null);
       refetchLimit();
     } catch (e: any) {
       const codeRaw = e?.response?.data?.error?.code ?? e?.response?.data?.code ?? "";
       const codeU = String(codeRaw || "").toUpperCase();
       if (codeU === "WITHDRAWAL_NOT_ALLOWED") {
-        setWithdrawMessage("Only the depositing cashier can withdraw for this user.");
+        setWithdrawMessage("Only the depositing cashier or shop can redeem this token.");
         return;
       }
       const msg = e?.response?.data?.error?.message || e?.response?.data?.message || e?.message || "Withdrawal failed";
@@ -430,14 +417,18 @@ export const Dashboard = ({
               </div>
             </div>
 
-            {/* Withdraw Search */}
+            {/* Withdraw Token */}
             <div className="bg-[#3a444d] p-5 rounded-sm border border-gray-700 shadow-sm">
-              <label className="text-xs text-gray-300 font-bold mb-2 block uppercase tracking-wide">Withdraw (search by ID, phone number or username)</label>
+              <label className="text-xs text-gray-300 font-bold mb-2 block uppercase tracking-wide">Withdraw (enter customer token)</label>
               <div className="flex items-center">
                 <input
-                  placeholder="User Phone"
+                  placeholder="Withdrawal Token"
                   value={withdrawSearchQuery}
-                  onChange={(e) => setWithdrawSearchQuery(e.target.value)}
+                  onChange={(e) => {
+                    setWithdrawSearchQuery(e.target.value.toUpperCase());
+                    setWithdrawalInfo(null);
+                    setWithdrawMessage("");
+                  }}
                   onKeyDown={(e) => e.key === "Enter" && handleWithdrawSearch()}
                   className="flex-1 bg-white text-gray-800 py-2 px-3 text-sm focus:outline-none rounded-l-sm h-9"
                 />
@@ -449,6 +440,50 @@ export const Dashboard = ({
                   <Search size={18} className="text-white" />
                 </button>
               </div>
+              {withdrawMessage ? <div className="mt-2 text-[11px] text-gray-300 font-bold">{withdrawMessage}</div> : null}
+              {withdrawalInfo ? (
+                <div className="mt-4 bg-[#2c353d] border border-gray-600 rounded-sm p-4 space-y-3">
+                  <div className="flex items-center justify-between border-b border-gray-700 pb-2">
+                    <span className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Withdrawal information</span>
+                    <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-sm ${
+                      withdrawalInfo.status === "pending" ? "bg-[#3eda3e] text-black" : "bg-red-600 text-white"
+                    }`}>
+                      {withdrawalInfo.status}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <div className="text-gray-500 font-black uppercase text-[9px]">Token</div>
+                      <div className="text-white font-black">{withdrawalInfo.token}</div>
+                    </div>
+                    <div>
+                      <div className="text-gray-500 font-black uppercase text-[9px]">Amount</div>
+                      <div className="text-[#ffde00] font-black">{Number(withdrawalInfo.amount || 0).toFixed(2)} ETB</div>
+                    </div>
+                    <div>
+                      <div className="text-gray-500 font-black uppercase text-[9px]">Expires</div>
+                      <div className="text-white font-bold">{formatDateTime(withdrawalInfo.expiresAt)}</div>
+                    </div>
+                    <div>
+                      <div className="text-gray-500 font-black uppercase text-[9px]">User Balance</div>
+                      <div className="text-[#3eda3e] font-black">{Number(withdrawalInfo.user?.balance || 0).toFixed(2)}</div>
+                    </div>
+                  </div>
+                  <div className="border-t border-gray-700 pt-3">
+                    <div className="text-gray-500 font-black uppercase text-[9px] mb-1">User information</div>
+                    <div className="text-white font-black text-sm">{withdrawalInfo.user?.phoneNumber || withdrawalInfo.user?.displayName || "-"}</div>
+                    <div className="text-gray-400 text-[11px] font-bold">{withdrawalInfo.user?.displayName || withdrawalInfo.user?.email || withdrawalInfo.user?.id || "-"}</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleWithdraw}
+                    disabled={withdrawalInfo.status !== "pending" || withdrawMutation.isPending}
+                    className="w-full bg-[#3eda3e] hover:bg-[#2ebc2e] text-black text-xs px-4 py-2 rounded-sm font-black uppercase shadow-sm transition-all active:scale-95 disabled:opacity-50"
+                  >
+                    {withdrawMutation.isPending ? "Processing..." : "Withdraw"}
+                  </button>
+                </div>
+              ) : null}
             </div>
 
             {/* Offline Ticket Search */}
@@ -537,27 +572,6 @@ export const Dashboard = ({
                       </div>
                     ) : null}
 
-                    {activeUserAction === "withdraw" ? (
-                      <div className="bg-[#2c353d] border border-gray-600 p-3 rounded-sm space-y-3 shadow-inner">
-                        <div className="flex items-center gap-2">
-                          <input
-                            placeholder={withdrawAllowed ? `Max ${withdrawable}` : "Withdrawal not allowed"}
-                            value={withdrawAmount}
-                            onChange={(e) => setWithdrawAmount(e.target.value)}
-                            className="flex-1 bg-white text-gray-800 text-sm px-3 py-1.5 rounded-sm focus:outline-none h-9 font-bold"
-                            disabled={!withdrawAllowed || withdrawMutation.isPending}
-                          />
-                          <button
-                            onClick={handleWithdraw}
-                            disabled={!withdrawAllowed || withdrawMutation.isPending}
-                            className="bg-[#4fbfff] hover:bg-[#3dafee] text-white text-xs px-4 py-1 rounded-sm font-black h-9 uppercase shadow-sm transition-all active:scale-95 disabled:opacity-50"
-                          >
-                            WITHDRAW
-                          </button>
-                        </div>
-                        {withdrawMessage ? <div className="text-[11px] text-gray-300 font-bold">{withdrawMessage}</div> : null}
-                      </div>
-                    ) : null}
                   </>
                 ) : null}
 
