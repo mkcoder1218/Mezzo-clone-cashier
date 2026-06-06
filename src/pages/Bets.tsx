@@ -3,16 +3,41 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import React, { useState } from 'react';
+import { Copy } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
 import { useMyPlacedBets } from '../modules/bets/hooks';
+import { api } from '../lib/api';
+import { printKingsBetSlip } from '../lib/printTicket';
 
 export const Bets = () => {
   const { data: slips, isLoading } = useMyPlacedBets();
+  const [copyingSlipId, setCopyingSlipId] = useState<string | null>(null);
+  const [copyMessage, setCopyMessage] = useState("");
+
+  const handleCopySlip = async (slipId: string) => {
+    setCopyingSlipId(slipId);
+    setCopyMessage("");
+    try {
+      const { data } = await api.get(`/betslips/${slipId}`);
+      const slip = data?.slip;
+      if (!slip) throw new Error("Bet slip not found");
+      printKingsBetSlip({ ...slip, printCopy: true });
+    } catch (e: any) {
+      setCopyMessage(e?.response?.data?.error?.message || e?.response?.data?.message || e?.message || "Could not copy bet slip.");
+    } finally {
+      setCopyingSlipId(null);
+    }
+  };
 
   return (
     <div className="space-y-4 pt-2">
       <PageHeader title="Bets" />
+      {copyMessage ? (
+        <div className="bg-red-500/10 border border-red-500/30 text-red-200 text-[11px] font-black px-3 py-2 rounded-sm">
+          {copyMessage}
+        </div>
+      ) : null}
 
       <div className="overflow-x-auto rounded-sm border border-gray-700 shadow-2xl">
         <table className="w-full text-[10px] text-left bg-[#333c44]">
@@ -24,13 +49,14 @@ export const Bets = () => {
               <th className="py-2 px-3 border-r border-gray-700/50">Stake</th>
               <th className="py-2 px-3 border-r border-gray-700/50">Potential Payout</th>
               <th className="py-2 px-3 border-r border-gray-700/50">Result</th>
-              <th className="py-2 px-3">Payout</th>
+              <th className="py-2 px-3 border-r border-gray-700/50">Payout</th>
+              <th className="py-2 px-3">Copy</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-700 text-gray-300">
             {isLoading ? (
               <tr>
-                <td colSpan={7} className="py-6 text-center text-gray-400 font-black">
+                <td colSpan={8} className="py-6 text-center text-gray-400 font-black">
                   Loading...
                 </td>
               </tr>
@@ -52,12 +78,24 @@ export const Bets = () => {
                       {String(s.result || "pending").toUpperCase()}
                     </span>
                   </td>
-                  <td className="py-2 px-3">{s.payout || "-"}</td>
+                  <td className="py-2 px-3 border-r border-gray-700/50">{s.payout || "-"}</td>
+                  <td className="py-2 px-3">
+                    <button
+                      type="button"
+                      onClick={() => handleCopySlip(s.id)}
+                      disabled={copyingSlipId === s.id}
+                      title="Copy bet slip"
+                      className="h-7 px-2.5 rounded-sm bg-[#4fbfff] hover:bg-[#3dafee] text-white font-black uppercase text-[9px] inline-flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                      <Copy size={12} />
+                      {copyingSlipId === s.id ? "..." : "Copy"}
+                    </button>
+                  </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={7} className="py-6 text-center text-gray-400 font-black">
+                <td colSpan={8} className="py-6 text-center text-gray-400 font-black">
                   No bets yet.
                 </td>
               </tr>
