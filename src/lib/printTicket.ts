@@ -55,7 +55,21 @@ function formatDateTime(v?: string | null) {
   });
 }
 
+function isMobilePrintHost() {
+  const ua = navigator.userAgent || "";
+  const coarsePointer = window.matchMedia?.("(pointer: coarse)")?.matches ?? false;
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(ua) || (coarsePointer && window.innerWidth <= 900);
+}
+
+function fitReceiptLine(left: string, right: string, width = 32) {
+  const l = String(left || "");
+  const r = String(right || "");
+  const gap = Math.max(1, width - l.length - r.length);
+  return `${l}${" ".repeat(gap)}${r}`.slice(0, width);
+}
+
 export function printKingsBetSlip(slip: SlipForPrint) {
+  const mobilePrintHost = isMobilePrintHost();
   const selections = slip.BetSelections || [];
   const getSelectionOdds = (s: SlipSelection) => {
     const raw = Number(s.oddsAtPlacement || s?.snapshot?.outcome?.displayOdds || s?.snapshot?.outcome?.odds || 1);
@@ -87,6 +101,17 @@ export function printKingsBetSlip(slip: SlipForPrint) {
     barcodeSvg = "";
   }
 
+  const receiptLines: string[] = [
+    "KING5BET",
+    `SPORT ${ticketCode}${slip.printCopy ? " COPY" : ""}`,
+    `Cashier: ${String((slip as any).cashierName || "MK6-1")}`,
+    `Date: ${formatDateTime(issuedAt)}`,
+    `Valid: ${formatDateTime(validUntil)}`,
+    `Short code: ${ticketCode}`,
+    `Slip ref: ${slipRef}`,
+    "--------------------------------",
+  ];
+
   const rowsHtml = selections.map((s) => {
     const fixture = s?.Outcome?.Market?.Fixture || s?.snapshot?.fixture || {};
     const leagueName = fixture?.League?.name || fixture?.leagueName || "";
@@ -98,6 +123,14 @@ export function printKingsBetSlip(slip: SlipForPrint) {
     const outcomeName = s?.Outcome?.name || s?.snapshot?.outcome?.name || "";
     const odds = getSelectionOdds(s).toFixed(2);
 
+    receiptLines.push(
+      String(leagueName || "Sport").slice(0, 32),
+      `${formatDateTime(startsAt)} / ${home} V ${away}`.slice(0, 32),
+      `${String(s?.snapshot?.market?.key || "")} ${marketName}`.trim().slice(0, 32),
+      fitReceiptLine(outcomeName, odds),
+      "--------------------------------",
+    );
+
     return `
       <div class="sel">
         <div class="line">${escapeHtml(String(leagueName || "Sport"))}</div>
@@ -107,6 +140,14 @@ export function printKingsBetSlip(slip: SlipForPrint) {
       </div>
     `;
   }).join("\n");
+
+  receiptLines.push(
+    fitReceiptLine(`Total: ${stake.toFixed(2)}`, "ETB"),
+    fitReceiptLine("Total Odds:", totalOdds.toFixed(2)),
+    fitReceiptLine("Possible Winning:", `${possibleWinning.toFixed(2)} ETB`),
+    "Call us on telegram @king5bet",
+    "\n\n\n",
+  );
 
   const html = `
 <!doctype html>
@@ -118,6 +159,11 @@ export function printKingsBetSlip(slip: SlipForPrint) {
       @page { margin: 4mm; }
       body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #111; display: flex; justify-content: center; background: #fff; }
       .ticket { width: 72mm; padding: 2mm 1mm; }
+      .actions { position: sticky; top: 0; z-index: 1; display: flex; gap: 8px; justify-content: center; padding: 10px; background: #111820; }
+      .actions button { border: 0; border-radius: 4px; padding: 10px 14px; font-weight: 900; text-transform: uppercase; }
+      .actions .mini { background: #3eda3e; color: #000; }
+      .actions .print { background: #ffde00; color: #000; }
+      .actions .close { background: #e5e7eb; color: #111; }
       .brand { display: flex; justify-content: center; margin: 0 auto 2mm; }
       .brand img { width: 44mm; max-height: 20mm; object-fit: contain; }
       .barcode { display: flex; justify-content: center; margin: 0 0 2mm; }
@@ -135,9 +181,17 @@ export function printKingsBetSlip(slip: SlipForPrint) {
       .totals { margin-top: 1.5mm; font-size: 11px; font-weight: 900; line-height: 1.45; }
       .totals .row { display:flex; justify-content:space-between; border-bottom: 1px solid #222; }
       .foot { margin-top: 2mm; font-size: 9px; color: #111; font-weight: 900; text-align: center; }
+      @media print { .actions { display: none; } body { display: block; } .ticket { margin: 0 auto; } }
     </style>
   </head>
   <body>
+    ${mobilePrintHost ? `
+    <div class="actions">
+      <button class="mini" id="miniPrinterButton" type="button">Mini printer</button>
+      <button class="print" type="button" onclick="window.print()">Save as PDF</button>
+      <button class="close" type="button" onclick="window.close()">Close</button>
+    </div>
+    ` : ""}
     <div class="ticket">
       <div class="brand"><img src="${escapeHtml(logoUrl)}" alt="KING5bet" /></div>
       ${barcodeSvg ? `<div class="barcode">${barcodeSvg}</div>` : ""}
@@ -159,10 +213,61 @@ export function printKingsBetSlip(slip: SlipForPrint) {
       <div class="foot">Call us on telegram with @king5bet</div>
     </div>
     <script>
+      const receiptLines = ${JSON.stringify(receiptLines)};
+      async function printMiniTicket() {
+        if (!("usb" in navigator)) {
+          window.print();
+          return;
+        }
+
+        const usb = navigator.usb;
+        let device = null;
+        const knownDevices = await usb.getDevices();
+        device = knownDevices[0] || null;
+        if (!device) {
+          device = await usb.requestDevice({ filters: [] });
+        }
+        if (!device) {
+          window.print();
+          return;
+        }
+
+        await device.open();
+        if (device.configuration === null) await device.selectConfiguration(1);
+        const iface = device.configuration.interfaces.find((item) =>
+          item.alternates.some((alt) => alt.endpoints.some((ep) => ep.direction === "out"))
+        );
+        if (!iface) throw new Error("No printer output channel found.");
+        const alternate = iface.alternates[0];
+        if (!iface.claimed) await device.claimInterface(iface.interfaceNumber);
+        if (alternate.alternateSetting) await device.selectAlternateInterface(iface.interfaceNumber, alternate.alternateSetting);
+        const endpoint = alternate.endpoints.find((ep) => ep.direction === "out");
+        if (!endpoint) throw new Error("No printer output endpoint found.");
+
+        const text = "\\x1b@\\x1ba\\x01" + receiptLines.slice(0, 2).join("\\n") + "\\n\\x1ba\\x00" + receiptLines.slice(2).join("\\n") + "\\n\\x1dV\\x00";
+        const bytes = new TextEncoder().encode(text);
+        await device.transferOut(endpoint.endpointNumber, bytes);
+      }
+
       window.onload = () => {
         window.focus();
+        ${mobilePrintHost ? "" : `
         window.print();
         window.onafterprint = () => window.close();
+        `}
+        const miniButton = document.getElementById("miniPrinterButton");
+        if (miniButton) {
+          if (!("usb" in navigator)) {
+            miniButton.style.display = "none";
+          } else {
+            miniButton.addEventListener("click", () => {
+              printMiniTicket().catch((err) => {
+                alert((err && err.message) ? err.message : "Mini printer unavailable. Opening Save as PDF.");
+                window.print();
+              });
+            });
+          }
+        }
       };
     </script>
   </body>
