@@ -47,6 +47,7 @@ export const Dashboard = ({
   const [offlineCode, setOfflineCode] = useState("");
   const [loadedOfflineCode, setLoadedOfflineCode] = useState("");
   const [offlineLookupMessage, setOfflineLookupMessage] = useState("");
+  const [offlineSelectionsLoading, setOfflineSelectionsLoading] = useState(false);
   const { data: slip, isLoading: slipLoading, refetch: refetchSlip } = useSlip(slipId);
   const [balanceModalOpen, setBalanceModalOpen] = useState(false);
   const [balanceModalText, setBalanceModalText] = useState("Insufficient balance. Please add more limit to place this bet.");
@@ -249,6 +250,7 @@ export const Dashboard = ({
     const code = offlineCode.trim().toUpperCase();
     if (!code) return;
     setOfflineLookupMessage("");
+    setOfflineSelectionsLoading(true);
 
     let activeSlipId = slipId;
     if (!activeSlipId) {
@@ -258,6 +260,7 @@ export const Dashboard = ({
       setSlipId(activeSlipId);
       if (!activeSlipId) {
         setOfflineLookupMessage("Failed to create slip for user.");
+        setOfflineSelectionsLoading(false);
         return;
       }
     }
@@ -265,6 +268,7 @@ export const Dashboard = ({
       const res = await lookupOffline.mutateAsync(code);
       if (res.ticket?.usedAt) {
         setOfflineLookupMessage(`Code ${res.ticket.shortCode} already used.`);
+        setOfflineSelectionsLoading(false);
         return;
       }
 
@@ -276,6 +280,7 @@ export const Dashboard = ({
       const selections = res.ticket?.payload?.selections || [];
       if (!selections.length) {
         setOfflineLookupMessage("No selections found for this code.");
+        setOfflineSelectionsLoading(false);
         return;
       }
 
@@ -289,6 +294,7 @@ export const Dashboard = ({
 
       if (!payloadSelections.length) {
         setOfflineLookupMessage("No selections found for this code.");
+        setOfflineSelectionsLoading(false);
         return;
       }
 
@@ -297,14 +303,19 @@ export const Dashboard = ({
       setLoadedOfflineCode(String(res.ticket.shortCode || code).toUpperCase());
       setOfflineCode("");
       setSlipId(activeSlipId);
-      refetchSlip();
+      await refetchSlip();
+      setOfflineSelectionsLoading(false);
     } catch (e: any) {
       const msg = e?.response?.data?.error?.message || e?.message || "Offline ticket not found";
       setOfflineLookupMessage(msg);
+      setOfflineSelectionsLoading(false);
       // eslint-disable-next-line no-console
       console.error("[offline-ticket-lookup]", msg, e);
     }
   };
+
+  const betslipLoading = Boolean(slipId && !foundUser && (offlineSelectionsLoading || lookupOffline.isPending || bulkUpsert.isPending || slipLoading));
+  const betSelections = slip?.BetSelections || [];
 
   return (
     <div className="space-y-8 pt-2 max-w-5xl">
@@ -583,7 +594,15 @@ export const Dashboard = ({
                       <span className="text-[10px] font-mono text-gray-500 bg-gray-800 px-1.5 py-0.5 rounded">{slipId.slice(-6).toUpperCase()}</span>
                     </div>
                     <div className="max-h-72 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-                      {slip?.BetSelections?.map((s: any) => (
+                      {betslipLoading ? (
+                        Array.from({ length: 3 }).map((_, index) => (
+                          <div key={index} className="bg-[#2c353d] p-3 rounded-sm border border-gray-700 shadow-sm animate-pulse">
+                            <div className="h-3 w-4/5 bg-gray-600/70 rounded" />
+                            <div className="h-2.5 w-3/5 bg-gray-700/80 rounded mt-2" />
+                            <div className="h-3 w-12 bg-[#ffde00]/30 rounded mt-2" />
+                          </div>
+                        ))
+                      ) : betSelections.map((s: any) => (
                         <div key={s.id} className="bg-[#2c353d] p-3 rounded-sm border border-gray-700 shadow-sm">
                           {(() => {
                             const fixture = s?.Outcome?.Market?.Fixture || s?.snapshot?.fixture || {};
@@ -612,7 +631,7 @@ export const Dashboard = ({
                     <div className="space-y-3 pt-3 border-t border-gray-700/50">
                       <div className="flex justify-between text-sm font-black uppercase tracking-tight">
                         <span className="text-gray-400">Total Odds:</span>
-                        <span className="text-[#ffde00]">{(slip?.BetSelections || []).reduce((p: number, s: any) => p * Number(s.oddsAtPlacement || 1), 1).toFixed(2)}</span>
+                        <span className="text-[#ffde00]">{betslipLoading ? "--" : betSelections.reduce((p: number, s: any) => p * Number(s.oddsAtPlacement || 1), 1).toFixed(2)}</span>
                       </div>
                       <div className="flex gap-2">
                         <input 
@@ -623,9 +642,10 @@ export const Dashboard = ({
                         />
                         <button 
                           onClick={handlePlace} 
-                          className="bg-[#3eda3e] hover:bg-[#2ebc2e] text-black text-xs px-5 py-1 rounded-sm font-black uppercase tracking-widest h-10 transition-all active:scale-95 shadow-md"
+                          disabled={betslipLoading || !betSelections.length}
+                          className="bg-[#3eda3e] hover:bg-[#2ebc2e] disabled:opacity-50 disabled:cursor-not-allowed text-black text-xs px-5 py-1 rounded-sm font-black uppercase tracking-widest h-10 transition-all active:scale-95 shadow-md"
                         >
-                          PLACE
+                          {betslipLoading ? "LOADING" : "PLACE"}
                         </button>
                       </div>
                     </div>
