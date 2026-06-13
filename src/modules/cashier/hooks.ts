@@ -33,6 +33,7 @@ export function useDeposit() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cashier-limit'] });
+      queryClient.invalidateQueries({ queryKey: ['cashier-stats'] });
       queryClient.invalidateQueries({ queryKey: ['search-player'] });
     }
   });
@@ -47,6 +48,7 @@ export function useWithdraw() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cashier-limit'] });
+      queryClient.invalidateQueries({ queryKey: ['cashier-stats'] });
       queryClient.invalidateQueries({ queryKey: ['search-player'] });
     },
   });
@@ -61,7 +63,8 @@ export function usePaySlip() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cashier-limit"] });
-      queryClient.invalidateQueries({ queryKey: ["cashier-bet-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["cashier-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["cashier-bets"] });
     },
   });
 }

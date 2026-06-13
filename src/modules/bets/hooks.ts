@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../lib/api";
 
 export function useMyPlacedBets() {
@@ -35,6 +35,7 @@ export function useSlip(slipId?: string | null) {
   return useQuery({
     queryKey: ["cashier-slip", slipId],
     enabled: !!slipId,
+    staleTime: 15_000,
     queryFn: async () => {
       const { data } = await api.get(`/betslips/${slipId}`);
       return data.slip;
@@ -64,10 +65,16 @@ export function useBulkUpsertSelections() {
 }
 
 export function usePlaceSlip() {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ slipId, stake }: { slipId: string; stake: number }) => {
       const { data } = await api.post("/betslips/place", { slipId, stake });
       return data.slip;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cashier-limit"] });
+      queryClient.invalidateQueries({ queryKey: ["cashier-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["cashier-bets"] });
     }
   });
 }

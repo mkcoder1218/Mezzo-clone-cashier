@@ -4,7 +4,8 @@
  */
 
 import React from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { RefreshCcw } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { PageHeader } from '../components/PageHeader';
 import { api } from '../lib/api';
 
@@ -12,18 +13,25 @@ export const Results = ({ searchQuery, setSearchQuery }: { searchQuery: string; 
   const [activeTab] = React.useState<'SPORTS' | 'KENO' | 'DOGS' | 'WOF' | 'KABOOM' | 'HORSES' | 'TOTO'>('SPORTS');
   const [statusFilter, setStatusFilter] = React.useState<'all' | 'finished'>('finished');
   const [page, setPage] = React.useState(1);
+  const today = React.useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const [cashboxToken, setCashboxToken] = React.useState('');
+  const [dtFrom, setDtFrom] = React.useState(today);
+  const [dtTill, setDtTill] = React.useState(today);
+  const queryClient = useQueryClient();
   const limit = 10;
   const offset = (page - 1) * limit;
 
   const resultsQuery = useQuery({
-    queryKey: ['results', { activeTab, searchQuery, page, statusFilter }],
+    queryKey: ['results', { activeTab, searchQuery, page, statusFilter, dtFrom, dtTill }],
     queryFn: async () => {
       const { data } = await api.get('/results', {
         params: {
           limit,
           offset,
           q: searchQuery || undefined,
-          status: statusFilter === 'finished' ? 'finished' : undefined
+          status: statusFilter === 'finished' ? 'finished' : undefined,
+          dtFrom: dtFrom || undefined,
+          dtTill: dtTill || undefined
         }
       });
       return data as { count: number; rows: any[] };
@@ -32,13 +40,29 @@ export const Results = ({ searchQuery, setSearchQuery }: { searchQuery: string; 
     staleTime: 10_000
   });
 
+  const syncMutation = useMutation({
+    mutationFn: async () => {
+      const { data } = await api.post('/results/sync', {
+        token: cashboxToken.trim() || undefined,
+        dt_from: dtFrom,
+        dt_till: dtTill,
+        type: 'sports',
+        what: 'results'
+      });
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['results'] });
+    }
+  });
+
   const rows = resultsQuery.data?.rows || [];
   const count = resultsQuery.data?.count || 0;
   const totalPages = Math.max(1, Math.ceil(count / limit));
 
   React.useEffect(() => {
     setPage(1);
-  }, [searchQuery, activeTab, statusFilter]);
+  }, [searchQuery, activeTab, statusFilter, dtFrom, dtTill]);
 
   const fmtDate = (iso: string) => {
     const d = new Date(iso);
@@ -92,7 +116,7 @@ export const Results = ({ searchQuery, setSearchQuery }: { searchQuery: string; 
             <input 
               value={cashboxToken}
               onChange={(e) => setCashboxToken(e.target.value)}
-              placeholder="Enter token to override system default..."
+              placeholder="Optional: override system default token..."
               className="w-full bg-[#161d23] border border-gray-700 text-gray-100 px-3 py-1.5 text-[10px] font-bold focus:outline-none focus:border-[#ffde00]"
             />
           </div>
@@ -119,7 +143,7 @@ export const Results = ({ searchQuery, setSearchQuery }: { searchQuery: string; 
         <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-700/50">
           <button 
             onClick={() => syncMutation.mutate()}
-            disabled={syncMutation.isPending || !cashboxToken}
+            disabled={syncMutation.isPending || !dtFrom || !dtTill}
             className="flex items-center gap-2 bg-[#ffde00] text-black px-6 py-2 text-[10px] font-black uppercase italic tracking-widest hover:bg-[#e6c800] transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-[0_0_15px_rgba(255,222,0,0.2)]"
           >
             <RefreshCcw size={12} className={syncMutation.isPending ? 'animate-spin' : ''} />

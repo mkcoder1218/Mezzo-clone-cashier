@@ -4,7 +4,8 @@
  */
 
 import React, { useState } from 'react';
-import { Search, User as UserIcon } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { Search, User as UserIcon, X } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
 import { useCashierLimit, useDeposit, useWithdraw } from '../modules/cashier/hooks';
 import { useAddSelection, useBulkUpsertSelections, useCashierBetStats, useCreateSlip, usePlaceSlip, useSlip } from '../modules/bets/hooks';
@@ -13,15 +14,15 @@ import { useLookupOfflineTicket, useUseOfflineTicket } from "../modules/offlineT
 import { printKingsBetSlip } from "../lib/printTicket";
 
 interface DashboardProps {
-  searchQuery: string;
-  setSearchQuery: (s: string) => void;
+  initialSearchQuery?: string;
   // ... other props kept for App.tsx compatibility
 }
 
 export const Dashboard = ({
-  searchQuery,
-  setSearchQuery,
+  initialSearchQuery = "",
 }: DashboardProps) => {
+  const queryClient = useQueryClient();
+  const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
   const [foundUser, setFoundUser] = useState<any>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [withdrawSearchQuery, setWithdrawSearchQuery] = useState("");
@@ -53,6 +54,7 @@ export const Dashboard = ({
   const [balanceModalText, setBalanceModalText] = useState("Insufficient balance. Please add more limit to place this bet.");
   const [infoModalOpen, setInfoModalOpen] = useState(false);
   const [infoModalText, setInfoModalText] = useState("");
+  const [mobileUserPanelOpen, setMobileUserPanelOpen] = useState(false);
 
   const extractError = (e: any) => {
     const codeRaw = e?.response?.data?.error?.code ?? e?.response?.data?.code ?? null;
@@ -97,6 +99,7 @@ export const Dashboard = ({
       setActiveUserAction("deposit");
       setSlipId(null); // Hide betslip when doing deposit/withdraw flows
       setWithdrawMessage("");
+      setMobileUserPanelOpen(true);
     } catch (err) {
       setFoundUser(null);
       alert('User not found');
@@ -114,6 +117,7 @@ export const Dashboard = ({
     try {
       const { data } = await api.get(`/cashier/withdrawals/token?token=${encodeURIComponent(token)}`);
       setWithdrawalInfo(data.request);
+      setMobileUserPanelOpen(true);
     } catch (e: any) {
       const msg = e?.response?.data?.error?.message || e?.response?.data?.message || e?.message || "Withdrawal token not found";
       setWithdrawMessage(msg);
@@ -180,6 +184,7 @@ export const Dashboard = ({
     if (!foundUser) return;
     const slip = await createSlip.mutateAsync({ userId: foundUser.id });
     setSlipId(slip.id);
+    setMobileUserPanelOpen(true);
     refetchSlip();
   };
 
@@ -201,7 +206,9 @@ export const Dashboard = ({
       // refetch the full slip before printing so selections render reliably.
       const printable = (placed as any)?.BetSelections?.length
         ? placed
-        : (await api.get(`/betslips/${slipId}`)).data?.slip ?? placed;
+        : betSelections.length
+          ? { ...(slip || {}), ...(placed || {}), id: slipId, BetSelections: betSelections }
+          : placed;
       // Some responses omit stake/potentialPayout; ensure they render on the ticket.
       if ((printable as any)?.stake == null) (printable as any).stake = n;
       if ((printable as any)?.potentialPayout == null && Array.isArray((printable as any)?.BetSelections)) {
@@ -215,12 +222,10 @@ export const Dashboard = ({
       if (loadedOfflineCode) (printable as any).shortCode = loadedOfflineCode;
       printKingsBetSlip(printable);
       if (loadedOfflineCode) {
-        try {
-          await useOfflineTicket.mutateAsync(loadedOfflineCode);
-        } catch (err) {
+        useOfflineTicket.mutateAsync(loadedOfflineCode).catch((err) => {
           // Placement already succeeded; do not turn a receipt into a failed bet.
           console.error("[offline-ticket-use]", err);
-        }
+        });
         setLoadedOfflineCode("");
       }
       setSlipId(null);
@@ -253,17 +258,6 @@ export const Dashboard = ({
     setOfflineSelectionsLoading(true);
 
     let activeSlipId = slipId;
-    if (!activeSlipId) {
-      setOfflineLookupMessage("Creating slip…");
-      const slip = await createSlip.mutateAsync({});
-      activeSlipId = slip?.id || null;
-      setSlipId(activeSlipId);
-      if (!activeSlipId) {
-        setOfflineLookupMessage("Failed to create slip for user.");
-        setOfflineSelectionsLoading(false);
-        return;
-      }
-    }
     try {
       const res = await lookupOffline.mutateAsync(code);
       if (res.ticket?.usedAt) {
@@ -298,12 +292,33 @@ export const Dashboard = ({
         return;
       }
 
-      await bulkUpsert.mutateAsync({ slipId: activeSlipId, selections: payloadSelections });
+      setMobileUserPanelOpen(true);
+
+      if (!activeSlipId) {
+        setOfflineLookupMessage("Creating slip...");
+        const createdSlip = await createSlip.mutateAsync({});
+        activeSlipId = createdSlip?.id || null;
+        if (!activeSlipId) {
+          setOfflineLookupMessage("Failed to create slip for user.");
+          setOfflineSelectionsLoading(false);
+          return;
+        }
+      }
+
+      const bulkResult = await bulkUpsert.mutateAsync({ slipId: activeSlipId, selections: payloadSelections });
+      queryClient.setQueryData(["cashier-slip", activeSlipId], {
+        id: activeSlipId,
+        status: "open",
+        stake: payloadStake ?? stake,
+        totalOdds: bulkResult?.totalOdds ?? null,
+        potentialPayout: bulkResult?.potentialPayout ?? null,
+        BetSelections: bulkResult?.selections || [],
+      });
       setOfflineLookupMessage(`Loaded ${payloadSelections.length} selections from ${res.ticket.shortCode}`);
       setLoadedOfflineCode(String(res.ticket.shortCode || code).toUpperCase());
       setOfflineCode("");
       setSlipId(activeSlipId);
-      await refetchSlip();
+      setMobileUserPanelOpen(true);
       setOfflineSelectionsLoading(false);
     } catch (e: any) {
       const msg = e?.response?.data?.error?.message || e?.message || "Offline ticket not found";
@@ -313,7 +328,6 @@ export const Dashboard = ({
       console.error("[offline-ticket-lookup]", msg, e);
     }
   };
-
   const betslipLoading = Boolean(slipId && !foundUser && (offlineSelectionsLoading || lookupOffline.isPending || bulkUpsert.isPending || slipLoading));
   const betSelections = slip?.BetSelections || [];
 
@@ -539,8 +553,37 @@ export const Dashboard = ({
           </div>
         </div>
 
-        {/* Sidebar: User Found & Bet Slip */}
-        <div className="space-y-5 lg:sticky lg:top-24">
+        {foundUser || slipId ? (
+          <button
+            type="button"
+            onClick={() => setMobileUserPanelOpen(true)}
+            className={[
+              "lg:hidden fixed right-4 bottom-4 z-[170] bg-[#ffde00] text-black px-4 py-3 rounded-sm font-black text-xs uppercase tracking-widest shadow-2xl active:scale-95",
+              mobileUserPanelOpen ? "opacity-0 pointer-events-none" : "opacity-100"
+            ].join(" ")}
+          >
+            User View
+          </button>
+        ) : null}
+
+        {mobileUserPanelOpen && (foundUser || slipId) ? (
+          <button
+            type="button"
+            aria-label="Close user view"
+            onClick={() => setMobileUserPanelOpen(false)}
+            className="lg:hidden fixed inset-0 z-[175] bg-black/45"
+          />
+        ) : null}
+
+        {/* User drawer / desktop side panel */}
+        <div className={[
+          "space-y-5 will-change-transform transition-transform duration-100 ease-out lg:sticky lg:top-24",
+          foundUser || slipId
+            ? `fixed inset-x-0 bottom-0 z-[180] max-h-[82dvh] overflow-y-auto rounded-t-lg bg-[#2c353d] border-t border-gray-700 p-3 shadow-2xl lg:static lg:max-h-none lg:translate-y-0 lg:overflow-visible lg:bg-transparent lg:border-0 lg:p-0 lg:shadow-none ${
+                mobileUserPanelOpen ? "translate-y-0" : "translate-y-full pointer-events-none"
+              }`
+            : "hidden lg:block"
+        ].join(" ")}>
           {foundUser || slipId ? (
             <div className="bg-[#1f282f] border border-gray-700 rounded-sm shadow-xl overflow-hidden">
               <div className="bg-[#2c353d] px-5 py-2.5 border-b border-gray-700 flex justify-between items-center">
@@ -548,11 +591,24 @@ export const Dashboard = ({
                   {foundUser ? `USER: ${foundUser.phoneNumber || foundUser.displayName}` : "OFFLINE TICKET"}
                 </span>
                 <button
+                  type="button"
                   onClick={() => {
                     setFoundUser(null);
                     setSlipId(null);
+                    setMobileUserPanelOpen(false);
                   }}
-                  className="text-gray-400 hover:text-white text-sm"
+                  className="lg:hidden text-gray-400 hover:text-white"
+                  title="Close user view"
+                >
+                  <X size={18} />
+                </button>
+                <button
+                  onClick={() => {
+                    setFoundUser(null);
+                    setSlipId(null);
+                    setMobileUserPanelOpen(false);
+                  }}
+                  className="hidden lg:block text-gray-400 hover:text-white text-sm"
                 >
                   ✕
                 </button>
@@ -664,3 +720,4 @@ export const Dashboard = ({
     </div>
   );
 };
+

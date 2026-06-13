@@ -54,8 +54,7 @@ export default function App() {
       case 'DASHBOARD':
         return (
           <Dashboard 
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
+            initialSearchQuery={searchQuery}
           />
         );
       case 'FINANCE': return <Finance />;

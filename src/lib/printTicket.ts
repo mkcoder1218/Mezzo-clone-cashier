@@ -181,7 +181,12 @@ export function printKingsBetSlip(slip: SlipForPrint) {
       .totals { margin-top: 1.5mm; font-size: 11px; font-weight: 900; line-height: 1.45; }
       .totals .row { display:flex; justify-content:space-between; border-bottom: 1px solid #222; }
       .foot { margin-top: 2mm; font-size: 9px; color: #111; font-weight: 900; text-align: center; }
-      @media print { .actions { display: none; } body { display: block; } .ticket { margin: 0 auto; } }
+      @media print {
+        body { display: block; background: #fff; }
+        body > *:not(.ticket) { display: none !important; }
+        .actions, button { display: none !important; }
+        .ticket { display: block !important; margin: 0 auto; }
+      }
     </style>
   </head>
   <body>
