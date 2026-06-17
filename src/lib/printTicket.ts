@@ -156,10 +156,16 @@ export function printKingsBetSlip(slip: SlipForPrint) {
     <meta charset="utf-8" />
     <title>KingsBet Ticket</title>
     <style>
-      @page { size: 80mm auto; margin: 2mm; }
+      ${mobilePrintHost ? `
+      @page { size: 80mm 297mm; margin: 2mm; }
       html, body { width: 80mm; min-height: 100%; margin: 0; padding: 0; background: #fff; }
-      body { font-family: Arial, Helvetica, sans-serif; color: #111; display: flex; justify-content: center; }
+      body { font-family: Arial, Helvetica, sans-serif; color: #111; display: block; }
       .ticket { width: 76mm; padding: 1mm; box-sizing: border-box; }
+      ` : `
+      @page { margin: 4mm; }
+      body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #111; display: flex; justify-content: center; background: #fff; }
+      .ticket { width: 72mm; padding: 2mm 1mm; }
+      `}
       .brand { display: flex; justify-content: center; margin: 0 auto 2mm; }
       .brand img { width: 44mm; max-height: 20mm; object-fit: contain; }
       .barcode { display: flex; justify-content: center; margin: 0 0 2mm; }
@@ -178,11 +184,16 @@ export function printKingsBetSlip(slip: SlipForPrint) {
       .totals .row { display:flex; justify-content:space-between; border-bottom: 1px solid #222; }
       .foot { margin-top: 2mm; font-size: 9px; color: #111; font-weight: 900; text-align: center; }
       @media print {
-        html, body { width: 80mm; margin: 0; padding: 0; background: #fff; }
+        ${mobilePrintHost ? `
+        html, body { width: 80mm; margin: 0; padding: 0; background: #fff; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
         body { display: block; }
+        .ticket { display: block !important; width: 76mm; margin: 0; padding: 1mm; }
+        ` : `
+        body { display: block; background: #fff; }
+        .ticket { display: block !important; margin: 0 auto; }
+        `}
         body > *:not(.ticket) { display: none !important; }
         button { display: none !important; }
-        .ticket { display: block !important; width: 76mm; margin: 0; padding: 1mm; }
       }
     </style>
   </head>
@@ -248,8 +259,24 @@ export function printKingsBetSlip(slip: SlipForPrint) {
 
       window.onload = () => {
         window.focus();
-        setTimeout(() => window.print(), 350);
-        window.onafterprint = () => window.close();
+        const isMobilePrintHost = ${JSON.stringify(mobilePrintHost)};
+        if (isMobilePrintHost) {
+          const waitForImages = Promise.all(
+            Array.from(document.images).map((img) => {
+              if (img.complete) return Promise.resolve();
+              return new Promise((resolve) => {
+                img.onload = resolve;
+                img.onerror = resolve;
+              });
+            })
+          );
+          waitForImages.finally(() => {
+            setTimeout(() => window.print(), 900);
+          });
+        } else {
+          window.print();
+          window.onafterprint = () => window.close();
+        }
       };
     </script>
   </body>
