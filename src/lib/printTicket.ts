@@ -156,14 +156,10 @@ export function printKingsBetSlip(slip: SlipForPrint) {
     <meta charset="utf-8" />
     <title>KingsBet Ticket</title>
     <style>
-      @page { margin: 4mm; }
-      body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #111; display: flex; justify-content: center; background: #fff; }
-      .ticket { width: 72mm; padding: 2mm 1mm; }
-      .actions { position: sticky; top: 0; z-index: 1; display: flex; gap: 8px; justify-content: center; padding: 10px; background: #111820; }
-      .actions button { border: 0; border-radius: 4px; padding: 10px 14px; font-weight: 900; text-transform: uppercase; }
-      .actions .mini { background: #3eda3e; color: #000; }
-      .actions .print { background: #ffde00; color: #000; }
-      .actions .close { background: #e5e7eb; color: #111; }
+      @page { size: 80mm auto; margin: 2mm; }
+      html, body { width: 80mm; min-height: 100%; margin: 0; padding: 0; background: #fff; }
+      body { font-family: Arial, Helvetica, sans-serif; color: #111; display: flex; justify-content: center; }
+      .ticket { width: 76mm; padding: 1mm; box-sizing: border-box; }
       .brand { display: flex; justify-content: center; margin: 0 auto 2mm; }
       .brand img { width: 44mm; max-height: 20mm; object-fit: contain; }
       .barcode { display: flex; justify-content: center; margin: 0 0 2mm; }
@@ -182,21 +178,15 @@ export function printKingsBetSlip(slip: SlipForPrint) {
       .totals .row { display:flex; justify-content:space-between; border-bottom: 1px solid #222; }
       .foot { margin-top: 2mm; font-size: 9px; color: #111; font-weight: 900; text-align: center; }
       @media print {
-        body { display: block; background: #fff; }
+        html, body { width: 80mm; margin: 0; padding: 0; background: #fff; }
+        body { display: block; }
         body > *:not(.ticket) { display: none !important; }
-        .actions, button { display: none !important; }
-        .ticket { display: block !important; margin: 0 auto; }
+        button { display: none !important; }
+        .ticket { display: block !important; width: 76mm; margin: 0; padding: 1mm; }
       }
     </style>
   </head>
   <body>
-    ${mobilePrintHost ? `
-    <div class="actions">
-      <button class="mini" id="miniPrinterButton" type="button">Mini printer</button>
-      <button class="print" type="button" onclick="window.print()">Save as PDF</button>
-      <button class="close" type="button" onclick="window.close()">Close</button>
-    </div>
-    ` : ""}
     <div class="ticket">
       <div class="brand"><img src="${escapeHtml(logoUrl)}" alt="KING5bet" /></div>
       ${barcodeSvg ? `<div class="barcode">${barcodeSvg}</div>` : ""}
@@ -251,28 +241,15 @@ export function printKingsBetSlip(slip: SlipForPrint) {
 
         const text = "\\x1b@\\x1ba\\x01" + receiptLines.slice(0, 2).join("\\n") + "\\n\\x1ba\\x00" + receiptLines.slice(2).join("\\n") + "\\n\\x1dV\\x00";
         const bytes = new TextEncoder().encode(text);
-        await device.transferOut(endpoint.endpointNumber, bytes);
+        for (let offset = 0; offset < bytes.length; offset += 512) {
+          await device.transferOut(endpoint.endpointNumber, bytes.slice(offset, offset + 512));
+        }
       }
 
       window.onload = () => {
         window.focus();
-        ${mobilePrintHost ? "" : `
-        window.print();
+        setTimeout(() => window.print(), 350);
         window.onafterprint = () => window.close();
-        `}
-        const miniButton = document.getElementById("miniPrinterButton");
-        if (miniButton) {
-          if (!("usb" in navigator)) {
-            miniButton.style.display = "none";
-          } else {
-            miniButton.addEventListener("click", () => {
-              printMiniTicket().catch((err) => {
-                alert((err && err.message) ? err.message : "Mini printer unavailable. Opening Save as PDF.");
-                window.print();
-              });
-            });
-          }
-        }
       };
     </script>
   </body>
