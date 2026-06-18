@@ -49,6 +49,7 @@ export const Dashboard = ({
   const [loadedOfflineCode, setLoadedOfflineCode] = useState("");
   const [offlineLookupMessage, setOfflineLookupMessage] = useState("");
   const [offlineSelectionsLoading, setOfflineSelectionsLoading] = useState(false);
+  const [placingOffline, setPlacingOffline] = useState(false);
   const { data: slip, isLoading: slipLoading, refetch: refetchSlip } = useSlip(slipId);
   const [balanceModalOpen, setBalanceModalOpen] = useState(false);
   const [balanceModalText, setBalanceModalText] = useState("Insufficient balance. Please add more limit to place this bet.");
@@ -200,6 +201,8 @@ export const Dashboard = ({
     if (!slipId) return;
     const n = Number(stake);
     if (!Number.isFinite(n) || n <= 0) return;
+    setPlacingOffline(true);
+    setOfflineLookupMessage("Placing ticket...");
     try {
       const placed = await placeSlip.mutateAsync({ slipId, stake: n });
       // Print the placed ticket (receipt style). If backend returned a slim slip,
@@ -229,6 +232,7 @@ export const Dashboard = ({
         setLoadedOfflineCode("");
       }
       setSlipId(null);
+      setOfflineLookupMessage("Ticket placed successfully.");
       refetchSlip();
       refetchLimit();
     } catch (e: any) {
@@ -244,10 +248,14 @@ export const Dashboard = ({
       if (isInsufficient) {
         setBalanceModalText("Insufficient balance. Please add more limit to place this bet.");
         setBalanceModalOpen(true);
+        setOfflineLookupMessage("Insufficient balance. Please add more limit to place this bet.");
         return;
       }
 
+      setOfflineLookupMessage(message || "Could not place bet. Please try again.");
       alert(message || "Could not place bet. Please try again.");
+    } finally {
+      setPlacingOffline(false);
     }
   };
 
@@ -330,6 +338,7 @@ export const Dashboard = ({
   };
   const betslipLoading = Boolean(slipId && !foundUser && (offlineSelectionsLoading || lookupOffline.isPending || bulkUpsert.isPending || slipLoading));
   const betSelections = slip?.BetSelections || [];
+  const placeDisabled = betslipLoading || placingOffline || placeSlip.isPending || !betSelections.length;
 
   return (
     <div className="space-y-8 pt-2 max-w-5xl">
@@ -698,10 +707,10 @@ export const Dashboard = ({
                         />
                         <button 
                           onClick={handlePlace} 
-                          disabled={betslipLoading || !betSelections.length}
+                          disabled={placeDisabled}
                           className="bg-[#3eda3e] hover:bg-[#2ebc2e] disabled:opacity-50 disabled:cursor-not-allowed text-black text-xs px-5 py-1 rounded-sm font-black uppercase tracking-widest h-10 transition-all active:scale-95 shadow-md"
                         >
-                          {betslipLoading ? "LOADING" : "PLACE"}
+                          {placingOffline || placeSlip.isPending ? "PLACING" : betslipLoading ? "LOADING" : "PLACE"}
                         </button>
                       </div>
                     </div>
