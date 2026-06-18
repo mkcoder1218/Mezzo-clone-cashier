@@ -165,7 +165,7 @@ export function printKingsBetSlip(slip: SlipForPrint) {
   );
 
   const bluetoothPrintText = toBluetoothPrintText(receiptLines, ticketCode);
-  const bluetoothPrintUrl = `intent:#Intent;action=android.intent.action.SEND;type=text/plain;package=mate.bluetoothprint;S.android.intent.extra.TEXT=${encodeURIComponent(bluetoothPrintText)};end`;
+  const bluetoothPrintUrl = `intent://print/#Intent;action=android.intent.action.SEND;type=text/plain;package=mate.bluetoothprint;S.android.intent.extra.TEXT=${encodeURIComponent(bluetoothPrintText)};end`;
 
   const html = `
 <!doctype html>
