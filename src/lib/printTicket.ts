@@ -27,7 +27,6 @@ type SlipForPrint = {
 };
 
 import JsBarcode from "jsbarcode";
-import { api } from "./api";
 
 function escapeHtml(v: string) {
   return v.replace(/[&<>"']/g, (c) => {
@@ -67,38 +66,6 @@ function fitReceiptLine(left: string, right: string, width = 32) {
   const r = String(right || "");
   const gap = Math.max(1, width - l.length - r.length);
   return `${l}${" ".repeat(gap)}${r}`.slice(0, width);
-}
-
-function toBase64Url(v: string) {
-  const bytes = new TextEncoder().encode(v);
-  let binary = "";
-  bytes.forEach((byte) => {
-    binary += String.fromCharCode(byte);
-  });
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-}
-
-function toBluetoothPrintJson(lines: string[], barcodeValue: string) {
-  const payload = lines.reduce<Record<string, any>>((items, line, index) => {
-    items[String(index)] = {
-      type: 0,
-      content: line || " ",
-      bold: index < 2 ? 1 : 0,
-      align: index < 2 ? 1 : 0,
-      format: index === 0 ? 3 : index === 1 ? 1 : 0,
-    };
-    return items;
-  }, {});
-
-  payload[String(lines.length)] = {
-    type: 2,
-    value: barcodeValue,
-    width: 160,
-    height: 60,
-    align: 1,
-  };
-
-  return payload;
 }
 
 export function printKingsBetSlip(slip: SlipForPrint) {
@@ -182,11 +149,6 @@ export function printKingsBetSlip(slip: SlipForPrint) {
     "\n\n\n",
   );
 
-  const bluetoothPrintPayload = toBluetoothPrintJson(receiptLines, ticketCode);
-  const apiBaseUrl = new URL(String(api.defaults.baseURL || "/api"), window.location.origin).toString().replace(/\/$/, "");
-  const bluetoothResponseUrl = `${apiBaseUrl}/print/bluetooth?payload=${toBase64Url(JSON.stringify(bluetoothPrintPayload))}`;
-  const bluetoothPrintUrl = `my.bluetoothprint.scheme://${bluetoothResponseUrl}`;
-
   const html = `
 <!doctype html>
 <html>
@@ -222,7 +184,7 @@ export function printKingsBetSlip(slip: SlipForPrint) {
       .totals .row { display:flex; justify-content:space-between; border-bottom: 1px solid #222; }
       .foot { margin-top: 2mm; font-size: 9px; color: #111; font-weight: 900; text-align: center; }
       .print-actions { position: sticky; bottom: 0; display: flex; justify-content: center; padding: 8px; background: #fff; border-top: 1px solid #ddd; }
-      .print-actions a, .print-actions button { width: 72mm; max-width: calc(100vw - 16px); border: 0; background: #111; color: #fff; font: 800 14px Arial, Helvetica, sans-serif; padding: 11px 12px; border-radius: 3px; text-align: center; text-decoration: none; box-sizing: border-box; }
+      .print-actions button { width: 72mm; max-width: calc(100vw - 16px); border: 0; background: #111; color: #fff; font: 800 14px Arial, Helvetica, sans-serif; padding: 11px 12px; border-radius: 3px; text-align: center; text-decoration: none; box-sizing: border-box; }
       @media print {
         ${mobilePrintHost ? `
         html, body { width: 80mm; margin: 0; padding: 0; background: #fff; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
@@ -258,7 +220,7 @@ export function printKingsBetSlip(slip: SlipForPrint) {
       </div>
       <div class="foot">Call us on telegram with @king5bet</div>
     </div>
-    ${mobilePrintHost ? `<div class="print-actions"><a id="printTicketButton" href="${escapeHtml(bluetoothPrintUrl)}">Print Ticket</a></div>` : ""}
+    ${mobilePrintHost ? `<div class="print-actions"><button id="printTicketButton" type="button">Print Ticket</button></div>` : ""}
     <script>
       const receiptLines = ${JSON.stringify(receiptLines)};
       async function printMiniTicket() {
@@ -309,7 +271,7 @@ export function printKingsBetSlip(slip: SlipForPrint) {
         const button = document.getElementById("printTicketButton");
         if (!button) return;
         button.addEventListener("click", () => {
-          button.textContent = "Opening Printer...";
+          window.print();
         });
       }
 
@@ -364,9 +326,9 @@ export function printKingsBetSlip(slip: SlipForPrint) {
     });
 
     document.body.appendChild(overlay);
-    const button = overlay.querySelector<HTMLElement>("#printTicketButton");
+    const button = overlay.querySelector<HTMLButtonElement>("#printTicketButton");
     button?.addEventListener("click", () => {
-      button.textContent = "Opening Printer...";
+      window.print();
     });
     return;
   }
