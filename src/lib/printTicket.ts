@@ -183,6 +183,8 @@ export function printKingsBetSlip(slip: SlipForPrint) {
       .totals { margin-top: 1.5mm; font-size: 11px; font-weight: 900; line-height: 1.45; }
       .totals .row { display:flex; justify-content:space-between; border-bottom: 1px solid #222; }
       .foot { margin-top: 2mm; font-size: 9px; color: #111; font-weight: 900; text-align: center; }
+      .print-actions { position: sticky; bottom: 0; display: flex; justify-content: center; padding: 8px; background: #fff; border-top: 1px solid #ddd; }
+      .print-actions button { width: 72mm; max-width: calc(100vw - 16px); border: 0; background: #111; color: #fff; font: 800 14px Arial, Helvetica, sans-serif; padding: 11px 12px; border-radius: 3px; }
       @media print {
         ${mobilePrintHost ? `
         html, body { width: 80mm; margin: 0; padding: 0; background: #fff; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
@@ -193,7 +195,7 @@ export function printKingsBetSlip(slip: SlipForPrint) {
         .ticket { display: block !important; margin: 0 auto; }
         `}
         body > *:not(.ticket) { display: none !important; }
-        button { display: none !important; }
+        .print-actions, button { display: none !important; }
       }
     </style>
   </head>
@@ -218,6 +220,7 @@ export function printKingsBetSlip(slip: SlipForPrint) {
       </div>
       <div class="foot">Call us on telegram with @king5bet</div>
     </div>
+    ${mobilePrintHost ? `<div class="print-actions"><button id="printTicketButton" type="button">Print Ticket</button></div>` : ""}
     <script>
       const receiptLines = ${JSON.stringify(receiptLines)};
       async function printMiniTicket() {
@@ -264,28 +267,29 @@ export function printKingsBetSlip(slip: SlipForPrint) {
         window.print();
       }
 
+      function attachPrintButton() {
+        const button = document.getElementById("printTicketButton");
+        if (!button) return;
+        button.addEventListener("click", () => {
+          button.disabled = true;
+          button.textContent = "Printing...";
+          printMiniTicket()
+            .then((printed) => {
+              if (!printed) printPreviewFallback();
+            })
+            .catch(() => printPreviewFallback())
+            .finally(() => {
+              button.disabled = false;
+              button.textContent = "Print Ticket";
+            });
+        });
+      }
+
       window.onload = () => {
         window.focus();
         const isMobilePrintHost = ${JSON.stringify(mobilePrintHost)};
         if (isMobilePrintHost) {
-          const waitForImages = Promise.all(
-            Array.from(document.images).map((img) => {
-              if (img.complete) return Promise.resolve();
-              return new Promise((resolve) => {
-                img.onload = resolve;
-                img.onerror = resolve;
-              });
-            })
-          );
-          waitForImages.finally(() => {
-            setTimeout(() => {
-              printMiniTicket()
-                .then((printed) => {
-                  if (!printed) printPreviewFallback();
-                })
-                .catch(() => printPreviewFallback());
-            }, 900);
-          });
+          attachPrintButton();
         } else {
           window.print();
           window.onafterprint = () => window.close();
