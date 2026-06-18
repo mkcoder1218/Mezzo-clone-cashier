@@ -222,8 +222,7 @@ export function printKingsBetSlip(slip: SlipForPrint) {
       const receiptLines = ${JSON.stringify(receiptLines)};
       async function printMiniTicket() {
         if (!("usb" in navigator)) {
-          window.print();
-          return;
+          return false;
         }
 
         const usb = navigator.usb;
@@ -231,11 +230,14 @@ export function printKingsBetSlip(slip: SlipForPrint) {
         const knownDevices = await usb.getDevices();
         device = knownDevices[0] || null;
         if (!device) {
-          device = await usb.requestDevice({ filters: [] });
+          try {
+            device = await usb.requestDevice({ filters: [] });
+          } catch {
+            return false;
+          }
         }
         if (!device) {
-          window.print();
-          return;
+          return false;
         }
 
         await device.open();
@@ -255,6 +257,11 @@ export function printKingsBetSlip(slip: SlipForPrint) {
         for (let offset = 0; offset < bytes.length; offset += 512) {
           await device.transferOut(endpoint.endpointNumber, bytes.slice(offset, offset + 512));
         }
+        return true;
+      }
+
+      function printPreviewFallback() {
+        window.print();
       }
 
       window.onload = () => {
@@ -271,7 +278,13 @@ export function printKingsBetSlip(slip: SlipForPrint) {
             })
           );
           waitForImages.finally(() => {
-            setTimeout(() => window.print(), 900);
+            setTimeout(() => {
+              printMiniTicket()
+                .then((printed) => {
+                  if (!printed) printPreviewFallback();
+                })
+                .catch(() => printPreviewFallback());
+            }, 900);
           });
         } else {
           window.print();
