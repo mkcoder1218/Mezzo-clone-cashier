@@ -68,6 +68,21 @@ function fitReceiptLine(left: string, right: string, width = 32) {
   return `${l}${" ".repeat(gap)}${r}`.slice(0, width);
 }
 
+function cleanBluetoothText(v: string) {
+  return String(v || " ").replace(/[<>;]/g, " ").trim() || " ";
+}
+
+function toBluetoothPrintText(lines: string[], barcodeValue: string) {
+  const parts = lines.map((line, index) => {
+    const bold = index < 2 ? 1 : 0;
+    const align = index < 2 ? 1 : 0;
+    const format = index === 0 ? 3 : index === 1 ? 1 : 0;
+    return `<${bold}${align}${format}>${cleanBluetoothText(line)}\n`;
+  });
+  parts.push(`<BARCODE>1#160#60#${cleanBluetoothText(barcodeValue)}`);
+  return parts.join("");
+}
+
 export function printKingsBetSlip(slip: SlipForPrint) {
   const mobilePrintHost = isMobilePrintHost();
   const selections = slip.BetSelections || [];
@@ -148,6 +163,7 @@ export function printKingsBetSlip(slip: SlipForPrint) {
     "Call us on telegram @king5bet",
     "\n\n\n",
   );
+  const bluetoothPrintText = toBluetoothPrintText(receiptLines, ticketCode);
 
   const html = `
 <!doctype html>
@@ -223,6 +239,7 @@ export function printKingsBetSlip(slip: SlipForPrint) {
     ${mobilePrintHost ? `<div class="print-actions"><button id="printTicketButton" type="button">Print Ticket</button></div>` : ""}
     <script>
       const receiptLines = ${JSON.stringify(receiptLines)};
+      const bluetoothPrintText = ${JSON.stringify(bluetoothPrintText)};
       async function printMiniTicket() {
         if (!("usb" in navigator)) {
           return false;
@@ -270,7 +287,13 @@ export function printKingsBetSlip(slip: SlipForPrint) {
       function attachPrintButton() {
         const button = document.getElementById("printTicketButton");
         if (!button) return;
-        button.addEventListener("click", () => {
+        button.addEventListener("click", async () => {
+          if (navigator.share) {
+            try {
+              await navigator.share({ text: bluetoothPrintText });
+              return;
+            } catch {}
+          }
           window.print();
         });
       }
@@ -327,7 +350,13 @@ export function printKingsBetSlip(slip: SlipForPrint) {
 
     document.body.appendChild(overlay);
     const button = overlay.querySelector<HTMLButtonElement>("#printTicketButton");
-    button?.addEventListener("click", () => {
+    button?.addEventListener("click", async () => {
+      if (navigator.share) {
+        try {
+          await navigator.share({ text: bluetoothPrintText });
+          return;
+        } catch {}
+      }
       window.print();
     });
     return;
