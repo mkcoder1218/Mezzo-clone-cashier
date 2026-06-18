@@ -307,6 +307,50 @@ export function printKingsBetSlip(slip: SlipForPrint) {
   </body>
 </html>`;
 
+  if (mobilePrintHost) {
+    const existing = document.getElementById("thermal-ticket-preview");
+    existing?.remove();
+
+    const previewDoc = new DOMParser().parseFromString(html, "text/html");
+    const overlay = document.createElement("div");
+    overlay.id = "thermal-ticket-preview";
+    overlay.style.position = "fixed";
+    overlay.style.inset = "0";
+    overlay.style.zIndex = "99999";
+    overlay.style.overflow = "auto";
+    overlay.style.background = "#fff";
+    overlay.style.color = "#111";
+
+    const style = previewDoc.querySelector("style");
+    if (style) overlay.appendChild(style.cloneNode(true));
+
+    const closeButton = document.createElement("button");
+    closeButton.type = "button";
+    closeButton.textContent = "Close";
+    closeButton.style.position = "sticky";
+    closeButton.style.top = "0";
+    closeButton.style.zIndex = "2";
+    closeButton.style.width = "100%";
+    closeButton.style.border = "0";
+    closeButton.style.background = "#333";
+    closeButton.style.color = "#fff";
+    closeButton.style.font = "800 14px Arial, Helvetica, sans-serif";
+    closeButton.style.padding = "12px";
+    closeButton.onclick = () => overlay.remove();
+    overlay.appendChild(closeButton);
+
+    Array.from(previewDoc.body.children).forEach((child) => {
+      if (child.tagName.toLowerCase() !== "script") overlay.appendChild(child.cloneNode(true));
+    });
+
+    document.body.appendChild(overlay);
+    const button = overlay.querySelector<HTMLElement>("#printTicketButton");
+    button?.addEventListener("click", () => {
+      button.textContent = "Opening Printer...";
+    });
+    return;
+  }
+
   // Some browsers return `null` when using `noopener` in feature string.
   // Open plainly and then null out `opener` for safety.
   const w = window.open("", "_blank", "width=380,height=700");
