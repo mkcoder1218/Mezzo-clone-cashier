@@ -178,7 +178,7 @@ export function printKingsBetSlip(slip: SlipForPrint) {
       @page { size: 80mm 297mm; margin: 2mm; }
       html, body { width: 80mm; min-height: 100%; margin: 0; padding: 0; background: #fff; }
       body { font-family: Arial, Helvetica, sans-serif; color: #111; display: block; }
-      .ticket { width: 76mm; padding: 1mm; box-sizing: border-box; }
+      .ticket { width: 76mm; max-width: calc(100vw - 16px); margin: 0 auto; padding: 1mm; box-sizing: border-box; }
       ` : `
       @page { margin: 4mm; }
       body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #111; display: flex; justify-content: center; background: #fff; }
@@ -205,14 +205,14 @@ export function printKingsBetSlip(slip: SlipForPrint) {
       .totals { margin-top: 1.5mm; font-size: 11px; font-weight: 900; line-height: 1.45; }
       .totals .row { display:flex; justify-content:space-between; border-bottom: 1px solid #222; }
       .foot { margin-top: 2mm; font-size: 9px; color: #111; font-weight: 900; text-align: center; }
-      .print-actions { position: sticky; bottom: 0; display: flex; justify-content: center; padding: 8px; background: #fff; border-top: 1px solid #ddd; }
+      .print-actions { position: sticky; bottom: 0; display: flex; justify-content: center; width: 76mm; max-width: calc(100vw - 16px); margin: 0 auto; padding: 8px 0; background: #fff; border-top: 1px solid #ddd; }
       .print-actions button { width: 72mm; max-width: calc(100vw - 16px); border: 0; background: #111; color: #fff; font: 800 14px Arial, Helvetica, sans-serif; padding: 11px 12px; border-radius: 3px; text-align: center; text-decoration: none; box-sizing: border-box; }
       .cashbox-print-note { width: 72mm; max-width: calc(100vw - 16px); margin: 6px auto 0; font: 800 12px Arial, Helvetica, sans-serif; color: #111; text-align: center; }
       @media print {
         ${mobilePrintHost ? `
         html, body { width: 80mm; margin: 0; padding: 0; background: #fff; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
         body { display: block; }
-        .ticket { display: block !important; width: 76mm; margin: 0; padding: 1mm; }
+        .ticket { display: block !important; width: 76mm; max-width: 76mm; margin: 0 auto; padding: 1mm; }
         ` : `
         body { display: block; background: #fff; }
         .ticket { display: block !important; margin: 0 auto; }
@@ -331,6 +331,9 @@ export function printKingsBetSlip(slip: SlipForPrint) {
     overlay.style.overflow = "auto";
     overlay.style.background = "#fff";
     overlay.style.color = "#111";
+    overlay.style.display = "flex";
+    overlay.style.flexDirection = "column";
+    overlay.style.alignItems = "center";
 
     const style = previewDoc.querySelector("style");
     if (style) overlay.appendChild(style.cloneNode(true));
@@ -341,7 +344,8 @@ export function printKingsBetSlip(slip: SlipForPrint) {
     closeButton.style.position = "sticky";
     closeButton.style.top = "0";
     closeButton.style.zIndex = "2";
-    closeButton.style.width = "100%";
+    closeButton.style.width = "76mm";
+    closeButton.style.maxWidth = "calc(100vw - 16px)";
     closeButton.style.border = "0";
     closeButton.style.background = "#333";
     closeButton.style.color = "#fff";
