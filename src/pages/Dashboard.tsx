@@ -60,10 +60,16 @@ export const Dashboard = ({
   const extractError = (e: any) => {
     const codeRaw = e?.response?.data?.error?.code ?? e?.response?.data?.code ?? null;
     const messageRaw = e?.response?.data?.error?.message ?? e?.response?.data?.message ?? e?.message ?? null;
+    const details = e?.response?.data?.error?.details ?? e?.response?.data?.details ?? null;
     const code = codeRaw ? String(codeRaw) : null;
     const message = messageRaw ? String(messageRaw) : null;
     const status = Number(e?.response?.status || 0) || null;
-    return { code, message, status };
+    return { code, message, status, details };
+  };
+
+  const formatMoney = (value: any) => {
+    const n = Number(value || 0);
+    return Number.isFinite(n) ? n.toFixed(2) : "-";
   };
 
   const formatDateTime = (value: any) => {
@@ -236,7 +242,7 @@ export const Dashboard = ({
       refetchSlip();
       refetchLimit();
     } catch (e: any) {
-      const { code, message } = extractError(e);
+      const { code, message, details } = extractError(e);
       const codeU = String(code || "").toUpperCase();
       const msgL = String(message || "").toLowerCase();
       const isInsufficient =
@@ -252,8 +258,23 @@ export const Dashboard = ({
         return;
       }
 
+      if (codeU === "MAX_WINNING_AMOUNT_EXCEEDED") {
+        const maxWinningAmount = details?.maxWinningAmount;
+        const potentialPayout = details?.potentialPayout;
+        const nextMessage = [
+          `Maximum winning amount exceeded for this cashier.`,
+          `Max winning amount: ${formatMoney(maxWinningAmount)} ETB.`,
+          potentialPayout != null ? `This ticket possible winning: ${formatMoney(potentialPayout)} ETB.` : "",
+        ].filter(Boolean).join(" ");
+        setBalanceModalText(nextMessage);
+        setBalanceModalOpen(true);
+        setOfflineLookupMessage(nextMessage);
+        return;
+      }
+
       setOfflineLookupMessage(message || "Could not place bet. Please try again.");
-      alert(message || "Could not place bet. Please try again.");
+      setBalanceModalText(message || "Could not place bet. Please try again.");
+      setBalanceModalOpen(true);
     } finally {
       setPlacingOffline(false);
     }
