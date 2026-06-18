@@ -50,6 +50,7 @@ export const Dashboard = ({
   const [offlineLookupMessage, setOfflineLookupMessage] = useState("");
   const [offlineSelectionsLoading, setOfflineSelectionsLoading] = useState(false);
   const [placingOffline, setPlacingOffline] = useState(false);
+  const [removingSelectionId, setRemovingSelectionId] = useState<string | null>(null);
   const { data: slip, isLoading: slipLoading, refetch: refetchSlip } = useSlip(slipId);
   const [balanceModalOpen, setBalanceModalOpen] = useState(false);
   const [balanceModalText, setBalanceModalText] = useState("Insufficient balance. Please add more limit to place this bet.");
@@ -280,6 +281,55 @@ export const Dashboard = ({
     }
   };
 
+  const handleRemoveOfflineSelection = async (selectionId: string) => {
+    if (!slipId || !selectionId || placingOffline) return;
+    const remainingSelections = betSelections.filter((s: any) => String(s.id) !== String(selectionId));
+    setRemovingSelectionId(selectionId);
+    setOfflineLookupMessage("");
+
+    try {
+      if (!remainingSelections.length) {
+        queryClient.setQueryData(["cashier-slip", slipId], {
+          ...(slip || {}),
+          BetSelections: [],
+          totalOdds: null,
+          potentialPayout: null,
+        });
+        setSlipId(null);
+        setLoadedOfflineCode("");
+        setOfflineLookupMessage("All selections removed.");
+        return;
+      }
+
+      const payloadSelections = remainingSelections.map((s: any) => ({
+        outcomeId: String(s.outcomeId),
+        acceptedOdds: Number(s.oddsAtPlacement || s?.snapshot?.outcome?.displayOdds || s?.snapshot?.outcome?.odds || 1),
+        acceptedOddsVersion: Number(s.acceptedOddsVersion || s?.snapshot?.outcome?.oddsVersion || 1),
+      })).filter((s: any) => !!s.outcomeId && Number.isFinite(s.acceptedOdds) && s.acceptedOdds > 0);
+
+      if (!payloadSelections.length) {
+        setOfflineLookupMessage("Could not remove selection. Please reload this ticket.");
+        return;
+      }
+
+      const bulkResult = await bulkUpsert.mutateAsync({ slipId, selections: payloadSelections });
+      queryClient.setQueryData(["cashier-slip", slipId], {
+        ...(slip || {}),
+        id: slipId,
+        status: "open",
+        totalOdds: bulkResult?.totalOdds ?? null,
+        potentialPayout: bulkResult?.potentialPayout ?? null,
+        BetSelections: bulkResult?.selections || [],
+      });
+      setOfflineLookupMessage("Selection removed.");
+    } catch (e: any) {
+      const msg = e?.response?.data?.error?.message || e?.response?.data?.message || e?.message || "Could not remove selection.";
+      setOfflineLookupMessage(msg);
+    } finally {
+      setRemovingSelectionId(null);
+    }
+  };
+
   const handleOfflineLookup = async () => {
     const code = offlineCode.trim().toUpperCase();
     if (!code) return;
@@ -357,9 +407,9 @@ export const Dashboard = ({
       console.error("[offline-ticket-lookup]", msg, e);
     }
   };
-  const betslipLoading = Boolean(slipId && !foundUser && (offlineSelectionsLoading || lookupOffline.isPending || bulkUpsert.isPending || slipLoading));
+  const betslipLoading = Boolean(slipId && !foundUser && (offlineSelectionsLoading || lookupOffline.isPending || (bulkUpsert.isPending && !removingSelectionId) || slipLoading));
   const betSelections = slip?.BetSelections || [];
-  const placeDisabled = betslipLoading || placingOffline || placeSlip.isPending || !betSelections.length;
+  const placeDisabled = betslipLoading || placingOffline || placeSlip.isPending || !!removingSelectionId || !betSelections.length;
 
   return (
     <div className="space-y-8 pt-2 max-w-5xl">
@@ -698,8 +748,19 @@ export const Dashboard = ({
                             const outcomeName = s?.Outcome?.name || s?.snapshot?.outcome?.name || "";
                             return (
                               <>
-                                <div className="font-bold text-xs text-gray-100 leading-tight">
-                                  {home && away ? `${home} vs ${away}` : "Selection"}
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="font-bold text-xs text-gray-100 leading-tight">
+                                    {home && away ? `${home} vs ${away}` : "Selection"}
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveOfflineSelection(String(s.id))}
+                                    disabled={!!removingSelectionId || placingOffline || placeSlip.isPending}
+                                    title="Remove selection"
+                                    className="shrink-0 text-gray-500 hover:text-red-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                                  >
+                                    <X size={14} />
+                                  </button>
                                 </div>
                                 <div className="text-[11px] text-gray-400 mt-1 uppercase font-bold">
                                   {marketName ? `${marketName}: ` : ""}{outcomeName || ""}
@@ -709,7 +770,7 @@ export const Dashboard = ({
                           })()}
                           <div className="text-[#ffde00] font-black text-xs mt-1.5 flex items-center gap-1">
                             <span className="text-gray-500 text-[9px]">@</span>
-                            {Number(s.oddsAtPlacement || s?.snapshot?.outcome?.odds || 1).toFixed(2)}
+                            {removingSelectionId === String(s.id) ? "Removing..." : Number(s.oddsAtPlacement || s?.snapshot?.outcome?.odds || 1).toFixed(2)}
                           </div>
                         </div>
                       ))}
