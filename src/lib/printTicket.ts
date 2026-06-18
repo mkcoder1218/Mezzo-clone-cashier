@@ -27,6 +27,7 @@ type SlipForPrint = {
 };
 
 import JsBarcode from "jsbarcode";
+import { api } from "./api";
 
 function escapeHtml(v: string) {
   return v.replace(/[&<>"']/g, (c) => {
@@ -66,6 +67,15 @@ function fitReceiptLine(left: string, right: string, width = 32) {
   const r = String(right || "");
   const gap = Math.max(1, width - l.length - r.length);
   return `${l}${" ".repeat(gap)}${r}`.slice(0, width);
+}
+
+function toBase64Url(v: string) {
+  const bytes = new TextEncoder().encode(v);
+  let binary = "";
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
 export function printKingsBetSlip(slip: SlipForPrint) {
@@ -149,6 +159,28 @@ export function printKingsBetSlip(slip: SlipForPrint) {
     "\n\n\n",
   );
 
+  const bluetoothPrintPayload = receiptLines.reduce<Record<string, any>>((payload, line, index) => {
+    payload[String(index)] = {
+      type: 0,
+      content: line || " ",
+      bold: index < 2 ? 1 : 0,
+      align: index < 2 ? 1 : 0,
+      format: index === 0 ? 3 : index === 1 ? 1 : 0,
+    };
+    return payload;
+  }, {});
+  bluetoothPrintPayload[String(receiptLines.length)] = {
+    type: 2,
+    value: ticketCode,
+    width: 160,
+    height: 60,
+    align: 1,
+  };
+
+  const apiBaseUrl = new URL(String(api.defaults.baseURL || "/api"), window.location.origin).toString().replace(/\/$/, "");
+  const bluetoothResponseUrl = `${apiBaseUrl}/print/bluetooth?payload=${toBase64Url(JSON.stringify(bluetoothPrintPayload))}`;
+  const bluetoothPrintUrl = `my.bluetoothprint.scheme://${bluetoothResponseUrl}`;
+
   const html = `
 <!doctype html>
 <html>
@@ -184,7 +216,7 @@ export function printKingsBetSlip(slip: SlipForPrint) {
       .totals .row { display:flex; justify-content:space-between; border-bottom: 1px solid #222; }
       .foot { margin-top: 2mm; font-size: 9px; color: #111; font-weight: 900; text-align: center; }
       .print-actions { position: sticky; bottom: 0; display: flex; justify-content: center; padding: 8px; background: #fff; border-top: 1px solid #ddd; }
-      .print-actions button { width: 72mm; max-width: calc(100vw - 16px); border: 0; background: #111; color: #fff; font: 800 14px Arial, Helvetica, sans-serif; padding: 11px 12px; border-radius: 3px; }
+      .print-actions a, .print-actions button { width: 72mm; max-width: calc(100vw - 16px); border: 0; background: #111; color: #fff; font: 800 14px Arial, Helvetica, sans-serif; padding: 11px 12px; border-radius: 3px; text-align: center; text-decoration: none; box-sizing: border-box; }
       @media print {
         ${mobilePrintHost ? `
         html, body { width: 80mm; margin: 0; padding: 0; background: #fff; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
@@ -220,7 +252,7 @@ export function printKingsBetSlip(slip: SlipForPrint) {
       </div>
       <div class="foot">Call us on telegram with @king5bet</div>
     </div>
-    ${mobilePrintHost ? `<div class="print-actions"><button id="printTicketButton" type="button">Print Ticket</button></div>` : ""}
+    ${mobilePrintHost ? `<div class="print-actions"><a id="printTicketButton" href="${escapeHtml(bluetoothPrintUrl)}">Print Ticket</a></div>` : ""}
     <script>
       const receiptLines = ${JSON.stringify(receiptLines)};
       async function printMiniTicket() {
@@ -271,17 +303,7 @@ export function printKingsBetSlip(slip: SlipForPrint) {
         const button = document.getElementById("printTicketButton");
         if (!button) return;
         button.addEventListener("click", () => {
-          button.disabled = true;
-          button.textContent = "Printing...";
-          printMiniTicket()
-            .then((printed) => {
-              if (!printed) printPreviewFallback();
-            })
-            .catch(() => printPreviewFallback())
-            .finally(() => {
-              button.disabled = false;
-              button.textContent = "Print Ticket";
-            });
+          button.textContent = "Opening Printer...";
         });
       }
 
