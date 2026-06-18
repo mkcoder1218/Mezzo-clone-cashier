@@ -100,7 +100,7 @@ export function printKingsBetSlip(slip: SlipForPrint) {
   const issuedAt = slip.placedAt || new Date().toISOString();
   const validUntil = new Date(new Date(issuedAt).getTime() + 30 * 24 * 3600 * 1000).toISOString();
   const logoUrl = `${window.location.origin}/brand/king5bet-logo-black.png`;
-  const ticketUrl = `https://king5.bet/#/user/ticket/${encodeURIComponent(slip.id)}`;
+  const ticketUrl = `https://king5.bet/#/ticket/${encodeURIComponent(slip.id)}`;
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=110x110&margin=0&data=${encodeURIComponent(ticketUrl)}`;
 
   let barcodeSvg = "";
