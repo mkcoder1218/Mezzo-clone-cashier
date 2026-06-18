@@ -27,6 +27,7 @@ type SlipForPrint = {
 };
 
 import JsBarcode from "jsbarcode";
+import { api } from "./api";
 
 function escapeHtml(v: string) {
   return v.replace(/[&<>"']/g, (c) => {
@@ -68,19 +69,36 @@ function fitReceiptLine(left: string, right: string, width = 32) {
   return `${l}${" ".repeat(gap)}${r}`.slice(0, width);
 }
 
-function cleanBluetoothText(v: string) {
-  return String(v || " ").replace(/[<>;]/g, " ").trim() || " ";
+function toBase64Url(v: string) {
+  const bytes = new TextEncoder().encode(v);
+  let binary = "";
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
-function toBluetoothPrintText(lines: string[], barcodeValue: string) {
-  const parts = lines.map((line, index) => {
-    const bold = index < 2 ? 1 : 0;
-    const align = index < 2 ? 1 : 0;
-    const format = index === 0 ? 3 : index === 1 ? 1 : 0;
-    return `<${bold}${align}${format}>${cleanBluetoothText(line)}\n`;
-  });
-  parts.push(`<BARCODE>1#160#60#${cleanBluetoothText(barcodeValue)}`);
-  return parts.join("");
+function toBluetoothPrintJson(lines: string[], barcodeValue: string) {
+  const payload = lines.reduce<Record<string, any>>((items, line, index) => {
+    items[String(index)] = {
+      type: 0,
+      content: line || " ",
+      bold: index < 2 ? 1 : 0,
+      align: index < 2 ? 1 : 0,
+      format: index === 0 ? 3 : index === 1 ? 1 : 0,
+    };
+    return items;
+  }, {});
+
+  payload[String(lines.length)] = {
+    type: 2,
+    value: barcodeValue,
+    width: 160,
+    height: 60,
+    align: 1,
+  };
+
+  return payload;
 }
 
 export function printKingsBetSlip(slip: SlipForPrint) {
@@ -164,8 +182,10 @@ export function printKingsBetSlip(slip: SlipForPrint) {
     "\n\n\n",
   );
 
-  const bluetoothPrintText = toBluetoothPrintText(receiptLines, ticketCode);
-  const bluetoothPrintUrl = `intent://print/#Intent;action=android.intent.action.SEND;type=text/plain;package=mate.bluetoothprint;S.android.intent.extra.TEXT=${encodeURIComponent(bluetoothPrintText)};end`;
+  const bluetoothPrintPayload = toBluetoothPrintJson(receiptLines, ticketCode);
+  const apiBaseUrl = new URL(String(api.defaults.baseURL || "/api"), window.location.origin).toString().replace(/\/$/, "");
+  const bluetoothResponseUrl = `${apiBaseUrl}/print/bluetooth?payload=${toBase64Url(JSON.stringify(bluetoothPrintPayload))}`;
+  const bluetoothPrintUrl = `my.bluetoothprint.scheme://${bluetoothResponseUrl}`;
 
   const html = `
 <!doctype html>
