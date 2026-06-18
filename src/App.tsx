@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useMe } from './modules/auth/hooks';
+import { api } from './lib/api';
 
 // Types
 import { Page } from './types';
@@ -29,6 +30,9 @@ export default function App() {
   const { data: me, isLoading } = useMe();
   const [currentPage, setCurrentPage] = useState<Page>('SIGN_IN');
   const [isTicketOpen, setIsTicketOpen] = useState(false);
+  const [ticketSlip, setTicketSlip] = useState<any>(null);
+  const [ticketLoading, setTicketLoading] = useState(false);
+  const [ticketError, setTicketError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
@@ -40,6 +44,36 @@ export default function App() {
       }
     }
   }, [me, isLoading]);
+
+  useEffect(() => {
+    if (!me) return;
+    const params = new URLSearchParams(window.location.search);
+    const ticketId = params.get('ticket');
+    if (!ticketId) return;
+
+    let cancelled = false;
+    setTicketLoading(true);
+    setTicketError('');
+    setIsTicketOpen(true);
+
+    api.get(`/betslips/${encodeURIComponent(ticketId)}`)
+      .then(({ data }) => {
+        if (cancelled) return;
+        setTicketSlip(data?.slip || null);
+        if (!data?.slip) setTicketError('Ticket not found.');
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setTicketError(e?.response?.data?.error?.message || e?.response?.data?.message || e?.message || 'Could not load ticket.');
+      })
+      .finally(() => {
+        if (!cancelled) setTicketLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [me]);
 
   if (isLoading) {
     return (
@@ -92,7 +126,13 @@ export default function App() {
 
       {currentPage === 'SIGN_IN' && renderContent()}
 
-      <TicketModal isOpen={isTicketOpen} onClose={() => setIsTicketOpen(false)} />
+      <TicketModal
+        isOpen={isTicketOpen}
+        onClose={() => setIsTicketOpen(false)}
+        slip={ticketSlip}
+        isLoading={ticketLoading}
+        error={ticketError}
+      />
       
       <style>{`
         ::-webkit-scrollbar {

@@ -9,40 +9,91 @@ import { X } from 'lucide-react';
 interface TicketModalProps {
   isOpen: boolean;
   onClose: () => void;
+  slip?: any;
+  isLoading?: boolean;
+  error?: string;
 }
 
-export const TicketModal = ({ isOpen, onClose }: TicketModalProps) => {
+function money(v: any) {
+  const n = Number(v || 0);
+  return Number.isFinite(n) ? n.toFixed(2) : '-';
+}
+
+function dateTime(v?: string | null) {
+  if (!v) return '-';
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? String(v) : d.toLocaleString();
+}
+
+function selectionRows(slip: any) {
+  return slip?.BetSelections || slip?.selections || [];
+}
+
+export const TicketModal = ({ isOpen, onClose, slip, isLoading, error }: TicketModalProps) => {
   if (!isOpen) return null;
 
+  const ticketCode = String(slip?.shortCode || slip?.id?.slice?.(0, 12) || '-').toUpperCase();
+  const rows = selectionRows(slip);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-      <div className="bg-[#2c353d] w-80 shadow-2xl rounded-sm overflow-hidden animate-in fade-in zoom-in duration-200">
-        <div className="bg-[#333c44] flex items-center justify-between px-3 py-1.5 border-b border-gray-700">
-          <div className="flex gap-3">
-            <span className="text-white text-[11px] font-black border-b border-[#ffde00] pb-0.5 uppercase tracking-tighter">Print Preview</span>
-            <span className="text-gray-400 text-[11px] font-black uppercase tracking-tighter">Ticket Info</span>
-          </div>
-          <X size={12} className="text-white cursor-pointer hover:text-[#ffde00]" onClick={onClose} />
-        </div>
-        
-        <div className="p-3 bg-white flex flex-col items-center">
-          <div className="border border-gray-800 rounded-lg p-2 w-full flex flex-col items-center text-gray-800 mb-3 bg-white shadow-sm">
-            <span className="text-lg font-black italic tracking-tighter mb-0 leading-none">kings</span>
-            <span className="text-lg font-black italic tracking-tighter mt-0 leading-none border-t border-gray-800 w-full text-center">bet</span>
-          </div>
-          
-          <div className="w-full space-y-0.5 text-[10px] font-black text-gray-800 uppercase tracking-tight">
-            <p className="border-b border-gray-100 pb-0.5">Website Deposit</p>
-            <p className="border-b border-gray-100 pb-0.5">Phone: +251933894492</p>
-            <p className="border-b border-gray-100 pb-0.5">Amount: 50.00</p>
-            <p className="pt-0.5 text-gray-500">Date issued: 2026-05-05 14:07</p>
-          </div>
+    <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/75 p-3 sm:p-6">
+      <div className="bg-[#2c353d] w-full max-w-xl max-h-[92vh] overflow-hidden shadow-2xl rounded-sm border border-gray-700">
+        <div className="bg-[#333c44] flex items-center justify-between px-3 py-2 border-b border-gray-700">
+          <span className="text-white text-[12px] font-black uppercase tracking-widest">Ticket</span>
+          <button type="button" className="text-white hover:text-[#ffde00]" onClick={onClose} aria-label="Close ticket">
+            <X size={16} />
+          </button>
         </div>
 
-        <div className="bg-[#333c44] p-1.5 flex justify-start">
-          <button className="bg-white text-gray-800 px-3 py-1 text-[10px] font-black rounded-sm shadow-inner hover:bg-gray-100 uppercase transition-colors tracking-tighter">
-            Print
-          </button>
+        <div className="overflow-y-auto max-h-[calc(92vh-42px)] bg-white text-gray-900 p-4">
+          {isLoading ? (
+            <div className="py-12 text-center text-gray-500 text-sm font-black uppercase">Loading ticket...</div>
+          ) : error ? (
+            <div className="py-12 text-center text-red-600 text-sm font-black">{error}</div>
+          ) : slip ? (
+            <div className="mx-auto w-full max-w-[360px] text-[12px] font-bold">
+              <div className="text-center border-b border-gray-900 pb-2 mb-2">
+                <div className="text-2xl font-black italic leading-none">KING5BET</div>
+                <div className="text-[11px] font-black tracking-widest mt-1">SPORT // {ticketCode}</div>
+              </div>
+
+              <div className="space-y-1 border-b border-gray-900 pb-2 mb-2">
+                <div className="flex justify-between gap-3"><span>Cashier</span><span>{slip.cashierName || slip.Cashier?.displayName || '-'}</span></div>
+                <div className="flex justify-between gap-3"><span>Date Issued</span><span className="text-right">{dateTime(slip.placedAt || slip.createdAt)}</span></div>
+                <div className="flex justify-between gap-3"><span>Short Code</span><span>{ticketCode}</span></div>
+                <div className="flex justify-between gap-3"><span>Slip Ref</span><span>{String(slip.id || '-').slice(0, 12).toUpperCase()}</span></div>
+              </div>
+
+              <div className="space-y-2">
+                {rows.length ? rows.map((s: any, index: number) => {
+                  const fixture = s?.Outcome?.Market?.Fixture || s?.snapshot?.fixture || {};
+                  const league = fixture?.League?.name || fixture?.leagueName || 'Sport';
+                  const home = fixture?.homeTeam?.name || fixture?.homeTeamName || '';
+                  const away = fixture?.awayTeam?.name || fixture?.awayTeamName || '';
+                  const market = s?.Outcome?.Market?.name || s?.snapshot?.market?.name || '';
+                  const outcome = s?.Outcome?.name || s?.snapshot?.outcome?.name || '';
+                  const odds = Number(s?.oddsAtPlacement || s?.snapshot?.outcome?.displayOdds || s?.snapshot?.outcome?.odds || 1).toFixed(2);
+                  return (
+                    <div key={s.id || index} className="border-b border-gray-900 pb-2">
+                      <div>{league}</div>
+                      <div className="text-[11px]">{home} V {away}</div>
+                      <div className="text-[11px]">{market}</div>
+                      <div className="flex justify-between gap-3 font-black"><span>{outcome}</span><span>{odds}</span></div>
+                    </div>
+                  );
+                }) : (
+                  <div className="border-b border-gray-900 pb-2 text-gray-500">No selections found.</div>
+                )}
+              </div>
+
+              <div className="space-y-1 pt-2 text-[13px] font-black">
+                <div className="flex justify-between gap-3 border-b border-gray-900"><span>Total</span><span>{money(slip.stake)} ETB</span></div>
+                <div className="flex justify-between gap-3 border-b border-gray-900"><span>Total Odds</span><span>{money(slip.totalOdds)}</span></div>
+                <div className="flex justify-between gap-3 border-b border-gray-900"><span>Possible Winning</span><span>{money(slip.potentialPayout)} ETB</span></div>
+                <div className="flex justify-between gap-3"><span>Result</span><span>{String(slip.result || 'pending').toUpperCase()}</span></div>
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

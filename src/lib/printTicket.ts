@@ -100,6 +100,8 @@ export function printKingsBetSlip(slip: SlipForPrint) {
   const issuedAt = slip.placedAt || new Date().toISOString();
   const validUntil = new Date(new Date(issuedAt).getTime() + 30 * 24 * 3600 * 1000).toISOString();
   const logoUrl = `${window.location.origin}/brand/king5bet-logo-black.png`;
+  const ticketUrl = `${window.location.origin}${window.location.pathname}?ticket=${encodeURIComponent(slip.id)}`;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=110x110&margin=0&data=${encodeURIComponent(ticketUrl)}`;
 
   let barcodeSvg = "";
   try {
@@ -184,6 +186,10 @@ export function printKingsBetSlip(slip: SlipForPrint) {
       `}
       .brand { display: flex; justify-content: center; margin: 0 auto 2mm; }
       .brand img { width: 44mm; max-height: 20mm; object-fit: contain; }
+      .scan-head { display: grid; grid-template-columns: 18mm 1fr 18mm; align-items: center; gap: 1.5mm; border-bottom: 1px solid #222; padding-bottom: 1.5mm; margin-bottom: 1.5mm; }
+      .scan-head .mini-brand { font-size: 8px; font-weight: 900; font-style: italic; white-space: nowrap; overflow: hidden; }
+      .scan-head .scan-text { text-align: center; font-size: 9px; font-weight: 900; line-height: 1.08; }
+      .scan-head img { width: 18mm; height: 18mm; object-fit: contain; justify-self: end; }
       .barcode { display: flex; justify-content: center; margin: 0 0 2mm; }
       .barcode svg { width: 66mm; height: 14mm; }
       .serial { text-align: center; font-size: 11px; font-weight: 800; margin-bottom: 1mm; }
@@ -218,6 +224,11 @@ export function printKingsBetSlip(slip: SlipForPrint) {
   </head>
   <body>
     <div class="ticket">
+      <div class="scan-head">
+        <div class="mini-brand">KING5BET</div>
+        <div class="scan-text">SCAN &amp; CHECK TICKET<br />PENDING</div>
+        <img src="${escapeHtml(qrUrl)}" alt="Ticket QR" />
+      </div>
       <div class="brand"><img src="${escapeHtml(logoUrl)}" alt="KING5bet" /></div>
       ${barcodeSvg ? `<div class="barcode">${barcodeSvg}</div>` : ""}
       <div class="serial">SPORT // ${escapeHtml(ticketCode)}${copyLabel}</div>
