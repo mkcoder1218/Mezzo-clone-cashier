@@ -74,15 +74,11 @@ function getPublicApiBaseUrl() {
 }
 
 function getBluetoothPrintReceiptUrl(slipId: string) {
-  const responseUrl = `${getPublicApiBaseUrl()}/print/receipt/${encodeURIComponent(slipId)}`;
-  return `my.bluetoothprint.scheme://${responseUrl}`;
+  return `${getPublicApiBaseUrl()}/print/receipt/${encodeURIComponent(slipId)}`;
 }
 
-function getBluetoothPrintIntentUrl(slipId: string) {
-  const responseUrl = `${getPublicApiBaseUrl()}/print/receipt/${encodeURIComponent(slipId)}`;
-  const schemePayload = encodeURIComponent(`//${responseUrl}`);
-  const fallback = encodeURIComponent(getBluetoothPrintReceiptUrl(slipId));
-  return `intent:${schemePayload}#Intent;scheme=my.bluetoothprint.scheme;package=mate.bluetoothprint;S.browser_fallback_url=${fallback};end`;
+function getBluetoothPrintSchemeUrl(slipId: string) {
+  return `my.bluetoothprint.scheme://${getBluetoothPrintReceiptUrl(slipId)}`;
 }
 
 function fitReceiptLine(left: string, right: string, width = 32) {
@@ -128,7 +124,7 @@ export function printKingsBetSlip(slip: SlipForPrint) {
   const ticketUrl = `https://king5.bet/#/ticket/${encodeURIComponent(slip.id)}`;
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=110x110&margin=0&data=${encodeURIComponent(ticketUrl)}`;
   const bluetoothPrintUrl = slip.id ? getBluetoothPrintReceiptUrl(slip.id) : "";
-  const bluetoothPrintLaunchUrl = slip.id ? getBluetoothPrintIntentUrl(slip.id) : "";
+  const bluetoothPrintSchemeUrl = slip.id ? getBluetoothPrintSchemeUrl(slip.id) : "";
 
   let barcodeSvg = "";
   try {
@@ -275,7 +271,7 @@ export function printKingsBetSlip(slip: SlipForPrint) {
       </div>
       <div class="foot">Call us on telegram with @king5bet</div>
     </div>
-    ${mobilePrintHost ? `<div class="print-actions">${androidBrowser ? `<a id="printTicketButton" href="${escapeHtml(bluetoothPrintLaunchUrl || bluetoothPrintUrl)}" target="_blank" rel="noopener">Print Thermal Ticket</a>` : `<button id="printTicketButton" type="button">Print Ticket</button>`}</div><div class="cashbox-print-note">${androidBrowser ? "Requires Bluetooth Print app with Browser Print enabled. Open this page in Chrome if the in-app browser shows an error." : "Choose your paired printer in the print screen."}</div>` : ""}
+    ${mobilePrintHost ? `<div class="print-actions">${androidBrowser ? `<a id="printTicketButton" href="${escapeHtml(bluetoothPrintUrl)}">Open Thermal Receipt</a>` : `<button id="printTicketButton" type="button">Print Ticket</button>`}</div><div class="cashbox-print-note">${androidBrowser ? "In Bluetooth Print, tap the printer icon after the JSON receipt opens. From Chrome, use this scheme link: " + escapeHtml(bluetoothPrintSchemeUrl) : "Choose your paired printer in the print screen."}</div>` : ""}
     <script>
       const receiptLines = ${JSON.stringify(receiptLines)};
       const bluetoothPrintText = ${JSON.stringify(bluetoothPrintText)};
