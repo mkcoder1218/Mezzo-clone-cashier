@@ -380,22 +380,6 @@ export function printKingsBetSlip(slip: SlipForPrint) {
     const style = previewDoc.querySelector("style");
     if (style) overlay.appendChild(style.cloneNode(true));
 
-    const closeButton = document.createElement("button");
-    closeButton.type = "button";
-    closeButton.textContent = "Close";
-    closeButton.style.position = "sticky";
-    closeButton.style.top = "0";
-    closeButton.style.zIndex = "2";
-    closeButton.style.width = "76mm";
-    closeButton.style.maxWidth = "calc(100vw - 16px)";
-    closeButton.style.border = "0";
-    closeButton.style.background = "#333";
-    closeButton.style.color = "#fff";
-    closeButton.style.font = "800 14px Arial, Helvetica, sans-serif";
-    closeButton.style.padding = "12px";
-    closeButton.onclick = () => overlay.remove();
-    overlay.appendChild(closeButton);
-
     Array.from(previewDoc.body.children).forEach((child) => {
       if (child.tagName.toLowerCase() !== "script") overlay.appendChild(child.cloneNode(true));
     });
