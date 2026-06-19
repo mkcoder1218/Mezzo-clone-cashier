@@ -61,6 +61,23 @@ function isMobilePrintHost() {
   return /Android|iPhone|iPad|iPod|Mobile/i.test(ua) || (coarsePointer && window.innerWidth <= 900);
 }
 
+function isAndroidBrowser() {
+  const ua = navigator.userAgent || "";
+  return /Android/i.test(ua);
+}
+
+function getPublicApiBaseUrl() {
+  const env = (import.meta as any)?.env || {};
+  const configured = String(env.VITE_PUBLIC_API_URL || env.VITE_API_URL || "").trim();
+  const fallback = `${window.location.origin.replace(/\/+$/, "")}/api`;
+  return (configured || fallback).replace(/\/+$/, "");
+}
+
+function getBluetoothPrintReceiptUrl(slipId: string) {
+  const responseUrl = `${getPublicApiBaseUrl()}/print/receipt/${encodeURIComponent(slipId)}`;
+  return `my.bluetoothprint.scheme://${responseUrl}`;
+}
+
 function fitReceiptLine(left: string, right: string, width = 32) {
   const l = String(left || "");
   const r = String(right || "");
@@ -85,6 +102,7 @@ function toBluetoothPrintText(lines: string[], barcodeValue: string) {
 
 export function printKingsBetSlip(slip: SlipForPrint) {
   const mobilePrintHost = isMobilePrintHost();
+  const androidBrowser = isAndroidBrowser();
   const selections = slip.BetSelections || [];
   const getSelectionOdds = (s: SlipSelection) => {
     const raw = Number(s.oddsAtPlacement || s?.snapshot?.outcome?.displayOdds || s?.snapshot?.outcome?.odds || 1);
@@ -102,6 +120,7 @@ export function printKingsBetSlip(slip: SlipForPrint) {
   const logoUrl = `${window.location.origin}/brand/king5bet-logo-black.png`;
   const ticketUrl = `https://king5.bet/#/ticket/${encodeURIComponent(slip.id)}`;
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=110x110&margin=0&data=${encodeURIComponent(ticketUrl)}`;
+  const bluetoothPrintUrl = slip.id ? getBluetoothPrintReceiptUrl(slip.id) : "";
 
   let barcodeSvg = "";
   try {
@@ -248,10 +267,12 @@ export function printKingsBetSlip(slip: SlipForPrint) {
       </div>
       <div class="foot">Call us on telegram with @king5bet</div>
     </div>
-    ${mobilePrintHost ? `<div class="print-actions"><button id="printTicketButton" type="button">Tap Top Printer Icon</button></div><div class="cashbox-print-note">Use the printer icon in the blue app bar.</div>` : ""}
+    ${mobilePrintHost ? `<div class="print-actions"><button id="printTicketButton" type="button">${androidBrowser ? "Print Thermal Ticket" : "Print Ticket"}</button></div><div class="cashbox-print-note">${androidBrowser ? "Requires Bluetooth Print app with Browser Print enabled." : "Choose your paired printer in the print screen."}</div>` : ""}
     <script>
       const receiptLines = ${JSON.stringify(receiptLines)};
       const bluetoothPrintText = ${JSON.stringify(bluetoothPrintText)};
+      const bluetoothPrintUrl = ${JSON.stringify(bluetoothPrintUrl)};
+      const androidBrowser = ${JSON.stringify(androidBrowser)};
       async function printMiniTicket() {
         if (!("usb" in navigator)) {
           return false;
@@ -300,7 +321,11 @@ export function printKingsBetSlip(slip: SlipForPrint) {
         const button = document.getElementById("printTicketButton");
         if (!button) return;
         button.addEventListener("click", () => {
-          alert("Use the printer icon in the blue app bar at the top of this browser.");
+          if (androidBrowser && bluetoothPrintUrl) {
+            window.location.href = bluetoothPrintUrl;
+            return;
+          }
+          window.print();
         });
       }
 
@@ -377,7 +402,11 @@ export function printKingsBetSlip(slip: SlipForPrint) {
     document.body.appendChild(overlay);
     const button = overlay.querySelector<HTMLButtonElement>("#printTicketButton");
     button?.addEventListener("click", () => {
-      alert("Use the printer icon in the blue app bar at the top of this browser.");
+      if (androidBrowser && bluetoothPrintUrl) {
+        window.location.href = bluetoothPrintUrl;
+        return;
+      }
+      window.print();
     });
     return;
   }
