@@ -232,8 +232,9 @@ export function printKingsBetSlip(slip: SlipForPrint) {
       .totals { margin-top: 1.5mm; font-size: 11px; font-weight: 900; line-height: 1.45; }
       .totals .row { display:flex; justify-content:space-between; border-bottom: 1px solid #222; }
       .foot { margin-top: 2mm; font-size: 9px; color: #111; font-weight: 900; text-align: center; }
-      .print-actions { position: sticky; bottom: 0; display: flex; justify-content: center; width: 76mm; max-width: calc(100vw - 16px); margin: 0 auto; padding: 8px 0; background: #fff; border-top: 1px solid #ddd; }
+      .print-actions { position: sticky; bottom: 0; display: grid; gap: 6px; justify-items: center; width: 76mm; max-width: calc(100vw - 16px); margin: 0 auto; padding: 8px 0; background: #fff; border-top: 1px solid #ddd; }
       .print-actions button, .print-actions a { width: 72mm; max-width: calc(100vw - 16px); border: 0; background: #111; color: #fff; font: 800 14px Arial, Helvetica, sans-serif; padding: 11px 12px; border-radius: 3px; text-align: center; text-decoration: none; box-sizing: border-box; }
+      .print-actions .secondary { background: #666; font-size: 12px; padding: 9px 12px; }
       .cashbox-print-note { width: 72mm; max-width: calc(100vw - 16px); margin: 6px auto 0; font: 800 12px Arial, Helvetica, sans-serif; color: #111; text-align: center; }
       @media print {
         ${mobilePrintHost ? `
@@ -275,7 +276,7 @@ export function printKingsBetSlip(slip: SlipForPrint) {
       </div>
       <div class="foot">Call us on telegram with @king5bet</div>
     </div>
-    ${mobilePrintHost ? `<div class="print-actions">${androidBrowser ? `<a id="printTicketButton" href="${escapeHtml(bluetoothPrintUrl)}">Open Thermal Receipt</a>` : `<button id="printTicketButton" type="button">Print Ticket</button>`}</div><div class="cashbox-print-note">${androidBrowser ? "In Bluetooth Print, tap the printer icon after the JSON receipt opens. From Chrome, use this scheme link: " + escapeHtml(bluetoothPrintSchemeUrl) : "Choose your paired printer in the print screen."}</div>` : ""}
+    ${mobilePrintHost ? `<div class="print-actions">${androidBrowser ? `<a id="printTicketButton" href="${escapeHtml(bluetoothPrintSchemeUrl)}">Auto Thermal Print</a><a class="secondary" href="${escapeHtml(bluetoothPrintUrl)}">Open JSON Fallback</a>` : `<button id="printTicketButton" type="button">Print Ticket</button>`}</div><div class="cashbox-print-note">${androidBrowser ? "Auto print works from Chrome/Android browser. If you are inside Bluetooth Print's in-app browser, use JSON fallback then tap the top printer icon." : "Choose your paired printer in the print screen."}</div>` : ""}
     <script>
       const receiptLines = ${JSON.stringify(receiptLines)};
       const bluetoothPrintText = ${JSON.stringify(bluetoothPrintText)};
