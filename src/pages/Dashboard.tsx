@@ -12,6 +12,7 @@ import { useAddSelection, useBulkUpsertSelections, useCashierBetStats, useCreate
 import { api } from '../lib/api';
 import { useLookupOfflineTicket, useUseOfflineTicket } from "../modules/offlineTickets/hooks";
 import { printKingsBetSlip } from "../lib/printTicket";
+import { useMe } from '../modules/auth/hooks';
 
 interface DashboardProps {
   initialSearchQuery?: string;
@@ -22,6 +23,7 @@ export const Dashboard = ({
   initialSearchQuery = "",
 }: DashboardProps) => {
   const queryClient = useQueryClient();
+  const { data: me } = useMe();
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
   const [foundUser, setFoundUser] = useState<any>(null);
   const [isSearching, setIsSearching] = useState(false);
@@ -67,6 +69,8 @@ export const Dashboard = ({
     const status = Number(e?.response?.status || 0) || null;
     return { code, message, status, details };
   };
+
+  const cashierName = String((me as any)?.displayName || (me as any)?.display_name || (me as any)?.phoneNumber || (me as any)?.email || "Cashier");
 
   const formatMoney = (value: any) => {
     const n = Number(value || 0);
@@ -230,6 +234,7 @@ export const Dashboard = ({
         (printable as any).potentialPayout = Number((n * tot).toFixed(2));
       }
       if (loadedOfflineCode) (printable as any).shortCode = loadedOfflineCode;
+      (printable as any).cashierName = cashierName;
       printKingsBetSlip(printable);
       if (loadedOfflineCode) {
         useOfflineTicket.mutateAsync(loadedOfflineCode).catch((err) => {

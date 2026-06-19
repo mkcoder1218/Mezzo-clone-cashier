@@ -23,6 +23,7 @@ type SlipForPrint = {
   stake?: string | number | null;
   potentialPayout?: string | number | null;
   placedAt?: string | null;
+  cashierName?: string | null;
   BetSelections?: SlipSelection[];
 };
 
@@ -148,7 +149,7 @@ export function printKingsBetSlip(slip: SlipForPrint) {
   const receiptLines: string[] = [
     "KING5BET",
     `SPORT ${ticketCode}${slip.printCopy ? " COPY" : ""}`,
-    `Cashier: ${String((slip as any).cashierName || "MK6-1")}`,
+    `Cashier: ${String(slip.cashierName || "Cashier")}`,
     `Date: ${formatDateTime(issuedAt)}`,
     `Valid: ${formatDateTime(validUntil)}`,
     `Short code: ${ticketCode}`,
@@ -257,7 +258,7 @@ export function printKingsBetSlip(slip: SlipForPrint) {
       ${barcodeSvg ? `<div class="barcode">${barcodeSvg}</div>` : ""}
       <div class="serial">SPORT // ${escapeHtml(ticketCode)}${copyLabel}</div>
       <div class="meta">
-        <div class="row"><span class="label">Cashier</span><span>${escapeHtml(String((slip as any).cashierName || "MK6-1"))}</span></div>
+        <div class="row"><span class="label">Cashier</span><span>${escapeHtml(String(slip.cashierName || "Cashier"))}</span></div>
         <div class="row"><span class="label">Date Issued:</span><span>${escapeHtml(formatDateTime(issuedAt))}</span></div>
         <div class="row"><span class="label">Valid until:</span><span>${escapeHtml(formatDateTime(validUntil))}</span></div>
         <div class="row"><span class="label">Short code:</span><span>${escapeHtml(ticketCode)}</span></div>

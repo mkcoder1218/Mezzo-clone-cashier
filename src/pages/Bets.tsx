@@ -9,11 +9,14 @@ import { PageHeader } from '../components/PageHeader';
 import { useMyPlacedBets } from '../modules/bets/hooks';
 import { api } from '../lib/api';
 import { printKingsBetSlip } from '../lib/printTicket';
+import { useMe } from '../modules/auth/hooks';
 
 export const Bets = () => {
   const { data: slips, isLoading } = useMyPlacedBets();
+  const { data: me } = useMe();
   const [copyingSlipId, setCopyingSlipId] = useState<string | null>(null);
   const [copyMessage, setCopyMessage] = useState("");
+  const cashierName = String((me as any)?.displayName || (me as any)?.display_name || (me as any)?.phoneNumber || (me as any)?.email || "Cashier");
 
   const handleCopySlip = async (slipId: string) => {
     setCopyingSlipId(slipId);
@@ -22,7 +25,7 @@ export const Bets = () => {
       const { data } = await api.get(`/betslips/${slipId}`);
       const slip = data?.slip;
       if (!slip) throw new Error("Bet slip not found");
-      printKingsBetSlip({ ...slip, printCopy: true });
+      printKingsBetSlip({ ...slip, cashierName, printCopy: true });
     } catch (e: any) {
       setCopyMessage(e?.response?.data?.error?.message || e?.response?.data?.message || e?.message || "Could not copy bet slip.");
     } finally {
