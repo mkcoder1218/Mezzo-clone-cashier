@@ -276,7 +276,7 @@ export function printKingsBetSlip(slip: SlipForPrint) {
       </div>
       <div class="foot">Call us on telegram with @king5bet</div>
     </div>
-    ${mobilePrintHost ? `<div class="print-actions">${androidBrowser ? `<a id="printTicketButton" href="${escapeHtml(bluetoothPrintSchemeUrl)}">Auto Thermal Print</a><a class="secondary" href="${escapeHtml(bluetoothPrintUrl)}">Open JSON Fallback</a>` : `<button id="printTicketButton" type="button">Print Ticket</button>`}</div><div class="cashbox-print-note">${androidBrowser ? "Auto print works from Chrome/Android browser. If you are inside Bluetooth Print's in-app browser, use JSON fallback then tap the top printer icon." : "Choose your paired printer in the print screen."}</div>` : ""}
+    ${mobilePrintHost ? `<div class="cashbox-print-note">${androidBrowser ? "Use the white printer icon in Bluetooth Print to print this ticket." : "Choose your paired printer in the print screen."}</div>` : ""}
     <script>
       const receiptLines = ${JSON.stringify(receiptLines)};
       const bluetoothPrintText = ${JSON.stringify(bluetoothPrintText)};
