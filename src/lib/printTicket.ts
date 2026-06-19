@@ -304,14 +304,30 @@ export function printKingsBetSlip(slip: SlipForPrint) {
         });
       }
 
+      function waitForImages() {
+        return Promise.all(
+          Array.from(document.images).map((img) => {
+            if (img.complete) return Promise.resolve();
+            return new Promise((resolve) => {
+              img.onload = resolve;
+              img.onerror = resolve;
+            });
+          })
+        );
+      }
+
       window.onload = () => {
         window.focus();
         const isMobilePrintHost = ${JSON.stringify(mobilePrintHost)};
         if (isMobilePrintHost) {
           attachPrintButton();
         } else {
-          window.print();
-          window.onafterprint = () => window.close();
+          waitForImages().finally(() => {
+            setTimeout(() => {
+              window.print();
+              window.onafterprint = () => window.close();
+            }, 250);
+          });
         }
       };
     </script>
