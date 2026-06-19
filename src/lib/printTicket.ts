@@ -78,6 +78,13 @@ function getBluetoothPrintReceiptUrl(slipId: string) {
   return `my.bluetoothprint.scheme://${responseUrl}`;
 }
 
+function getBluetoothPrintIntentUrl(slipId: string) {
+  const responseUrl = `${getPublicApiBaseUrl()}/print/receipt/${encodeURIComponent(slipId)}`;
+  const schemePayload = encodeURIComponent(`//${responseUrl}`);
+  const fallback = encodeURIComponent(getBluetoothPrintReceiptUrl(slipId));
+  return `intent:${schemePayload}#Intent;scheme=my.bluetoothprint.scheme;package=mate.bluetoothprint;S.browser_fallback_url=${fallback};end`;
+}
+
 function fitReceiptLine(left: string, right: string, width = 32) {
   const l = String(left || "");
   const r = String(right || "");
@@ -121,6 +128,7 @@ export function printKingsBetSlip(slip: SlipForPrint) {
   const ticketUrl = `https://king5.bet/#/ticket/${encodeURIComponent(slip.id)}`;
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=110x110&margin=0&data=${encodeURIComponent(ticketUrl)}`;
   const bluetoothPrintUrl = slip.id ? getBluetoothPrintReceiptUrl(slip.id) : "";
+  const bluetoothPrintLaunchUrl = slip.id ? getBluetoothPrintIntentUrl(slip.id) : "";
 
   let barcodeSvg = "";
   try {
@@ -267,7 +275,7 @@ export function printKingsBetSlip(slip: SlipForPrint) {
       </div>
       <div class="foot">Call us on telegram with @king5bet</div>
     </div>
-    ${mobilePrintHost ? `<div class="print-actions">${androidBrowser ? `<a id="printTicketButton" href="${escapeHtml(bluetoothPrintUrl)}">Print Thermal Ticket</a>` : `<button id="printTicketButton" type="button">Print Ticket</button>`}</div><div class="cashbox-print-note">${androidBrowser ? "Requires Bluetooth Print app with Browser Print enabled." : "Choose your paired printer in the print screen."}</div>` : ""}
+    ${mobilePrintHost ? `<div class="print-actions">${androidBrowser ? `<a id="printTicketButton" href="${escapeHtml(bluetoothPrintLaunchUrl || bluetoothPrintUrl)}" target="_blank" rel="noopener">Print Thermal Ticket</a>` : `<button id="printTicketButton" type="button">Print Ticket</button>`}</div><div class="cashbox-print-note">${androidBrowser ? "Requires Bluetooth Print app with Browser Print enabled. Open this page in Chrome if the in-app browser shows an error." : "Choose your paired printer in the print screen."}</div>` : ""}
     <script>
       const receiptLines = ${JSON.stringify(receiptLines)};
       const bluetoothPrintText = ${JSON.stringify(bluetoothPrintText)};
