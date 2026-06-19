@@ -69,7 +69,11 @@ function isAndroidBrowser() {
 function getPublicApiBaseUrl() {
   const env = (import.meta as any)?.env || {};
   const configured = String(env.VITE_PUBLIC_API_URL || env.VITE_API_URL || "").trim();
-  const fallback = `${window.location.origin.replace(/\/+$/, "")}/api`;
+  const localFallback = `${window.location.origin.replace(/\/+$/, "")}/api`;
+  const productionFallback = "https://api.king5.bet/api";
+  const fallback = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+    ? localFallback
+    : productionFallback;
   return (configured || fallback).replace(/\/+$/, "");
 }
 
