@@ -232,10 +232,6 @@ export function printKingsBetSlip(slip: SlipForPrint) {
       .totals { margin-top: 1.5mm; font-size: 11px; font-weight: 900; line-height: 1.45; }
       .totals .row { display:flex; justify-content:space-between; border-bottom: 1px solid #222; }
       .foot { margin-top: 2mm; font-size: 9px; color: #111; font-weight: 900; text-align: center; }
-      .print-actions { position: sticky; bottom: 0; display: grid; gap: 6px; justify-items: center; width: 76mm; max-width: calc(100vw - 16px); margin: 0 auto; padding: 8px 0; background: #fff; border-top: 1px solid #ddd; }
-      .print-actions button, .print-actions a { width: 72mm; max-width: calc(100vw - 16px); border: 0; background: #111; color: #fff; font: 800 14px Arial, Helvetica, sans-serif; padding: 11px 12px; border-radius: 3px; text-align: center; text-decoration: none; box-sizing: border-box; }
-      .print-actions .secondary { background: #666; font-size: 12px; padding: 9px 12px; }
-      .cashbox-print-note { width: 72mm; max-width: calc(100vw - 16px); margin: 6px auto 0; font: 800 12px Arial, Helvetica, sans-serif; color: #111; text-align: center; }
       @media print {
         ${mobilePrintHost ? `
         html, body { width: 80mm; margin: 0; padding: 0; background: #fff; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
@@ -246,7 +242,7 @@ export function printKingsBetSlip(slip: SlipForPrint) {
         .ticket { display: block !important; margin: 0 auto; }
         `}
         body > *:not(.ticket) { display: none !important; }
-        .print-actions, button { display: none !important; }
+        button { display: none !important; }
       }
     </style>
   </head>
@@ -276,7 +272,6 @@ export function printKingsBetSlip(slip: SlipForPrint) {
       </div>
       <div class="foot">Call us on telegram with @king5bet</div>
     </div>
-    ${mobilePrintHost ? `<div class="cashbox-print-note">${androidBrowser ? "Use the white printer icon in Bluetooth Print to print this ticket." : "Choose your paired printer in the print screen."}</div>` : ""}
     <script>
       const receiptLines = ${JSON.stringify(receiptLines)};
       const bluetoothPrintText = ${JSON.stringify(bluetoothPrintText)};
