@@ -426,27 +426,11 @@ export function printKingsBetSlip(slip: SlipForPrint) {
     printLink.style.fontWeight = "900";
     printLink.style.textDecoration = "none";
     printLink.style.borderRadius = "4px";
-    let thermerOpened = false;
-    let leftForThermerAt = 0;
-    const returnToCashbox = () => {
-      if (!thermerOpened || !leftForThermerAt || Date.now() - leftForThermerAt < 300) return;
-      window.location.assign("https://cashbox.king5.bet");
-    };
     printLink.addEventListener("click", () => {
-      thermerOpened = true;
+      window.setTimeout(() => {
+        window.location.replace("https://cashbox.king5.bet");
+      }, 1200);
     });
-    document.addEventListener("visibilitychange", () => {
-      if (!thermerOpened) return;
-      if (document.hidden) {
-        leftForThermerAt = Date.now();
-      } else {
-        returnToCashbox();
-      }
-    });
-    window.addEventListener("blur", () => {
-      if (thermerOpened && !leftForThermerAt) leftForThermerAt = Date.now();
-    });
-    window.addEventListener("focus", returnToCashbox);
     actions.appendChild(printLink);
     overlay.appendChild(actions);
     document.body.appendChild(overlay);
