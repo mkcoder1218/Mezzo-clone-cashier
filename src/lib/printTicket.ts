@@ -412,7 +412,7 @@ export function printKingsBetSlip(slip: SlipForPrint) {
     actions.style.borderTop = "1px solid #ddd";
 
     const printLink = document.createElement("a");
-    printLink.href = bluetoothPrintSchemeUrl;
+    printLink.href = "#";
     printLink.textContent = "Print with Thermer";
     printLink.style.display = "inline-flex";
     printLink.style.alignItems = "center";
@@ -426,10 +426,15 @@ export function printKingsBetSlip(slip: SlipForPrint) {
     printLink.style.fontWeight = "900";
     printLink.style.textDecoration = "none";
     printLink.style.borderRadius = "4px";
-    printLink.addEventListener("click", () => {
+    printLink.addEventListener("click", (event) => {
+      event.preventDefault();
+      const launcher = document.createElement("iframe");
+      launcher.style.display = "none";
+      launcher.src = bluetoothPrintSchemeUrl;
+      document.body.appendChild(launcher);
       window.setTimeout(() => {
         window.location.replace("https://cashbox.king5.bet");
-      }, 1200);
+      }, 350);
     });
     actions.appendChild(printLink);
     overlay.appendChild(actions);
