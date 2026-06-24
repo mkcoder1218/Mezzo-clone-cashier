@@ -62,6 +62,30 @@ function isMobilePrintHost() {
   return /Android|iPhone|iPad|iPod|Mobile/i.test(ua) || (coarsePointer && window.innerWidth <= 900);
 }
 
+function isAndroidBrowser() {
+  const ua = navigator.userAgent || "";
+  return /Android/i.test(ua);
+}
+
+function getPublicApiBaseUrl() {
+  const env = (import.meta as any)?.env || {};
+  const configured = String(env.VITE_PUBLIC_API_URL || env.VITE_API_URL || "").trim();
+  const localFallback = `${window.location.origin.replace(/\/+$/, "")}/api`;
+  const productionFallback = "https://api.king5.bet/api";
+  const fallback = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+    ? localFallback
+    : productionFallback;
+  return (configured || fallback).replace(/\/+$/, "");
+}
+
+function getBluetoothPrintReceiptUrl(slipId: string) {
+  return `${getPublicApiBaseUrl()}/print/receipt/${encodeURIComponent(slipId)}`;
+}
+
+function getBluetoothPrintSchemeUrl(slipId: string) {
+  return `my.bluetoothprint.scheme://${getBluetoothPrintReceiptUrl(slipId)}`;
+}
+
 function fitReceiptLine(left: string, right: string, width = 32) {
   const l = String(left || "");
   const r = String(right || "");
@@ -86,6 +110,7 @@ function toBluetoothPrintText(lines: string[], barcodeValue: string) {
 
 export function printKingsBetSlip(slip: SlipForPrint) {
   const mobilePrintHost = isMobilePrintHost();
+  const androidBrowser = isAndroidBrowser();
   const selections = slip.BetSelections || [];
   const getSelectionOdds = (s: SlipSelection) => {
     const raw = Number(s.oddsAtPlacement || s?.snapshot?.outcome?.displayOdds || s?.snapshot?.outcome?.odds || 1);
@@ -103,7 +128,8 @@ export function printKingsBetSlip(slip: SlipForPrint) {
   const logoUrl = `${window.location.origin}/brand/king5bet-logo-black.png`;
   const ticketUrl = `https://king5.bet/#/ticket/${encodeURIComponent(slip.id)}`;
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=110x110&margin=0&data=${encodeURIComponent(ticketUrl)}`;
-  const receiptHeightMm = Math.max(120, 78 + selections.length * 24);
+  const bluetoothPrintUrl = slip.id ? getBluetoothPrintReceiptUrl(slip.id) : "";
+  const bluetoothPrintSchemeUrl = slip.id ? getBluetoothPrintSchemeUrl(slip.id) : "";
 
   let barcodeSvg = "";
   try {
@@ -177,10 +203,10 @@ export function printKingsBetSlip(slip: SlipForPrint) {
     <title>KingsBet Ticket</title>
     <style>
       ${mobilePrintHost ? `
-      @page { size: 80mm ${receiptHeightMm}mm; margin: 2mm; }
-      html, body { width: 80mm; min-height: ${receiptHeightMm}mm; height: auto !important; margin: 0; padding: 0; background: #fff; overflow: visible !important; }
+      @page { size: 80mm 297mm; margin: 2mm; }
+      html, body { width: 80mm; min-height: 100%; margin: 0; padding: 0; background: #fff; }
       body { font-family: Arial, Helvetica, sans-serif; color: #111; display: block; }
-      .ticket { width: 76mm; max-width: 76mm; height: auto !important; overflow: visible !important; margin: 0 auto; padding: 1mm; box-sizing: border-box; }
+      .ticket { width: 76mm; max-width: calc(100vw - 16px); margin: 0 auto; padding: 1mm; box-sizing: border-box; }
       ` : `
       @page { margin: 4mm; }
       body { margin: 0; font-family: Arial, Helvetica, sans-serif; color: #111; display: flex; justify-content: center; background: #fff; }
@@ -209,9 +235,9 @@ export function printKingsBetSlip(slip: SlipForPrint) {
       .foot { margin-top: 2mm; font-size: 9px; color: #111; font-weight: 900; text-align: center; }
       @media print {
         ${mobilePrintHost ? `
-        html, body { width: 80mm; min-height: ${receiptHeightMm}mm; height: auto !important; overflow: visible !important; margin: 0; padding: 0; background: #fff; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+        html, body { width: 80mm; margin: 0; padding: 0; background: #fff; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
         body { display: block; }
-        .ticket { display: block !important; width: 76mm; max-width: 76mm; height: auto !important; overflow: visible !important; margin: 0 auto; padding: 1mm; }
+        .ticket { display: block !important; width: 76mm; max-width: 76mm; margin: 0 auto; padding: 1mm; }
         ` : `
         body { display: block; background: #fff; }
         .ticket { display: block !important; margin: 0 auto; }
@@ -250,6 +276,8 @@ export function printKingsBetSlip(slip: SlipForPrint) {
     <script>
       const receiptLines = ${JSON.stringify(receiptLines)};
       const bluetoothPrintText = ${JSON.stringify(bluetoothPrintText)};
+      const bluetoothPrintUrl = ${JSON.stringify(bluetoothPrintUrl)};
+      const androidBrowser = ${JSON.stringify(androidBrowser)};
       async function printMiniTicket() {
         if (!("usb" in navigator)) {
           return false;
@@ -294,6 +322,15 @@ export function printKingsBetSlip(slip: SlipForPrint) {
         window.print();
       }
 
+      function attachPrintButton() {
+        const button = document.getElementById("printTicketButton");
+        if (!button) return;
+        if (androidBrowser && bluetoothPrintUrl) return;
+        button.addEventListener("click", () => {
+          window.print();
+        });
+      }
+
       function waitForImages() {
         return Promise.all(
           Array.from(document.images).map((img) => {
@@ -308,40 +345,52 @@ export function printKingsBetSlip(slip: SlipForPrint) {
 
       window.onload = () => {
         window.focus();
-        waitForImages().finally(() => {
-          setTimeout(() => {
-            window.print();
-            window.onafterprint = () => window.close();
-          }, 300);
-        });
+        const isMobilePrintHost = ${JSON.stringify(mobilePrintHost)};
+        if (isMobilePrintHost) {
+          attachPrintButton();
+        } else {
+          waitForImages().finally(() => {
+            setTimeout(() => {
+              window.print();
+              window.onafterprint = () => window.close();
+            }, 250);
+          });
+        }
       };
     </script>
   </body>
 </html>`;
 
   if (mobilePrintHost) {
-    document.getElementById("king5-ticket-print-frame")?.remove();
-    const frame = document.createElement("iframe");
-    frame.id = "king5-ticket-print-frame";
-    frame.setAttribute("aria-hidden", "true");
-    frame.style.position = "fixed";
-    frame.style.right = "0";
-    frame.style.bottom = "0";
-    frame.style.width = "1px";
-    frame.style.height = "1px";
-    frame.style.border = "0";
-    frame.style.opacity = "0";
-    document.body.appendChild(frame);
-    const frameDocument = frame.contentDocument;
-    if (!frameDocument) {
-      frame.remove();
-      alert("Could not prepare the full ticket for printing.");
-      return;
-    }
-    frameDocument.open();
-    frameDocument.write(html);
-    frameDocument.close();
-    window.setTimeout(() => frame.remove(), 60_000);
+    const existing = document.getElementById("thermal-ticket-preview");
+    existing?.remove();
+
+    const previewDoc = new DOMParser().parseFromString(html, "text/html");
+    const overlay = document.createElement("div");
+    overlay.id = "thermal-ticket-preview";
+    overlay.style.position = "fixed";
+    overlay.style.inset = "0";
+    overlay.style.zIndex = "99999";
+    overlay.style.overflow = "auto";
+    overlay.style.background = "#fff";
+    overlay.style.color = "#111";
+    overlay.style.display = "flex";
+    overlay.style.flexDirection = "column";
+    overlay.style.alignItems = "center";
+
+    const style = previewDoc.querySelector("style");
+    if (style) overlay.appendChild(style.cloneNode(true));
+
+    Array.from(previewDoc.body.children).forEach((child) => {
+      if (child.tagName.toLowerCase() !== "script") overlay.appendChild(child.cloneNode(true));
+    });
+
+    document.body.appendChild(overlay);
+    const button = overlay.querySelector<HTMLButtonElement>("#printTicketButton");
+    button?.addEventListener("click", () => {
+      if (androidBrowser && bluetoothPrintUrl) return;
+      window.print();
+    });
     return;
   }
 
