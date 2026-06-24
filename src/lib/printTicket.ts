@@ -366,62 +366,8 @@ export function printKingsBetSlip(slip: SlipForPrint) {
   </body>
 </html>`;
 
-  if (mobilePrintHost) {
-    const existing = document.getElementById("thermal-ticket-preview");
-    existing?.remove();
-
-    const previewDoc = new DOMParser().parseFromString(html, "text/html");
-    const overlay = document.createElement("div");
-    overlay.id = "thermal-ticket-preview";
-    overlay.style.position = "fixed";
-    overlay.style.inset = "0";
-    overlay.style.zIndex = "99999";
-    overlay.style.overflow = "auto";
-    overlay.style.background = "#fff";
-    overlay.style.color = "#111";
-    overlay.style.display = "flex";
-    overlay.style.flexDirection = "column";
-    overlay.style.alignItems = "center";
-
-    const style = previewDoc.querySelector("style");
-    if (style) overlay.appendChild(style.cloneNode(true));
-
-    Array.from(previewDoc.body.children).forEach((child) => {
-      if (child.tagName.toLowerCase() !== "script") overlay.appendChild(child.cloneNode(true));
-    });
-
-    const actions = document.createElement("div");
-    actions.style.position = "sticky";
-    actions.style.bottom = "0";
-    actions.style.width = "100%";
-    actions.style.display = "flex";
-    actions.style.justifyContent = "center";
-    actions.style.gap = "8px";
-    actions.style.padding = "12px";
-    actions.style.boxSizing = "border-box";
-    actions.style.background = "#fff";
-    actions.style.borderTop = "1px solid #ddd";
-
-    const printLink = document.createElement("a");
-    printLink.id = "printTicketButton";
-    printLink.href = thermerReceiptPageUrl || bluetoothPrintSchemeUrl;
-    printLink.textContent = "Open Full Ticket";
-    printLink.style.display = "inline-flex";
-    printLink.style.alignItems = "center";
-    printLink.style.justifyContent = "center";
-    printLink.style.minWidth = "150px";
-    printLink.style.padding = "12px 18px";
-    printLink.style.background = "#111";
-    printLink.style.color = "#fff";
-    printLink.style.fontFamily = "Arial, Helvetica, sans-serif";
-    printLink.style.fontSize = "14px";
-    printLink.style.fontWeight = "800";
-    printLink.style.textDecoration = "none";
-    printLink.style.borderRadius = "4px";
-    actions.appendChild(printLink);
-    overlay.appendChild(actions);
-
-    document.body.appendChild(overlay);
+  if (mobilePrintHost && thermerReceiptPageUrl) {
+    window.location.assign(thermerReceiptPageUrl);
     return;
   }
 
