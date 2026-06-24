@@ -82,14 +82,12 @@ function getBluetoothPrintReceiptUrl(slipId: string) {
   return `${getPublicApiBaseUrl()}/print/receipt/${encodeURIComponent(slipId)}`;
 }
 
-function getBluetoothPrintSchemeUrl(slipId: string) {
-  return `my.bluetoothprint.scheme://${getBluetoothPrintReceiptUrl(slipId)}`;
+function getThermerReceiptPageUrl(slipId: string) {
+  return `${getBluetoothPrintReceiptUrl(slipId)}/page`;
 }
 
-function getBluetoothPrintIntentUrl(slipId: string) {
-  const receiptUrl = getBluetoothPrintReceiptUrl(slipId);
-  const fallbackUrl = encodeURIComponent("https://play.google.com/store/apps/details?id=mate.bluetoothprint");
-  return `intent://${receiptUrl}#Intent;scheme=my.bluetoothprint.scheme;package=mate.bluetoothprint;S.browser_fallback_url=${fallbackUrl};end`;
+function getBluetoothPrintSchemeUrl(slipId: string) {
+  return `my.bluetoothprint.scheme://${getBluetoothPrintReceiptUrl(slipId)}`;
 }
 
 function fitReceiptLine(left: string, right: string, width = 32) {
@@ -136,7 +134,7 @@ export function printKingsBetSlip(slip: SlipForPrint) {
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=110x110&margin=0&data=${encodeURIComponent(ticketUrl)}`;
   const bluetoothPrintUrl = slip.id ? getBluetoothPrintReceiptUrl(slip.id) : "";
   const bluetoothPrintSchemeUrl = slip.id ? getBluetoothPrintSchemeUrl(slip.id) : "";
-  const bluetoothPrintIntentUrl = slip.id ? getBluetoothPrintIntentUrl(slip.id) : "";
+  const thermerReceiptPageUrl = slip.id ? getThermerReceiptPageUrl(slip.id) : "";
 
   let barcodeSvg = "";
   try {
@@ -406,8 +404,8 @@ export function printKingsBetSlip(slip: SlipForPrint) {
 
     const printLink = document.createElement("a");
     printLink.id = "printTicketButton";
-    printLink.href = androidBrowser ? bluetoothPrintIntentUrl : bluetoothPrintSchemeUrl;
-    printLink.textContent = "Print Ticket";
+    printLink.href = thermerReceiptPageUrl || bluetoothPrintSchemeUrl;
+    printLink.textContent = "Open Full Ticket";
     printLink.style.display = "inline-flex";
     printLink.style.alignItems = "center";
     printLink.style.justifyContent = "center";
