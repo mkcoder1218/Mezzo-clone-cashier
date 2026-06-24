@@ -385,12 +385,38 @@ export function printKingsBetSlip(slip: SlipForPrint) {
       if (child.tagName.toLowerCase() !== "script") overlay.appendChild(child.cloneNode(true));
     });
 
+    const actions = document.createElement("div");
+    actions.style.position = "sticky";
+    actions.style.bottom = "0";
+    actions.style.width = "100%";
+    actions.style.display = "flex";
+    actions.style.justifyContent = "center";
+    actions.style.gap = "8px";
+    actions.style.padding = "12px";
+    actions.style.boxSizing = "border-box";
+    actions.style.background = "#fff";
+    actions.style.borderTop = "1px solid #ddd";
+
+    const printLink = document.createElement("a");
+    printLink.id = "printTicketButton";
+    printLink.href = bluetoothPrintSchemeUrl;
+    printLink.textContent = "Print Ticket";
+    printLink.style.display = "inline-flex";
+    printLink.style.alignItems = "center";
+    printLink.style.justifyContent = "center";
+    printLink.style.minWidth = "150px";
+    printLink.style.padding = "12px 18px";
+    printLink.style.background = "#111";
+    printLink.style.color = "#fff";
+    printLink.style.fontFamily = "Arial, Helvetica, sans-serif";
+    printLink.style.fontSize = "14px";
+    printLink.style.fontWeight = "800";
+    printLink.style.textDecoration = "none";
+    printLink.style.borderRadius = "4px";
+    actions.appendChild(printLink);
+    overlay.appendChild(actions);
+
     document.body.appendChild(overlay);
-    const button = overlay.querySelector<HTMLButtonElement>("#printTicketButton");
-    button?.addEventListener("click", () => {
-      if (androidBrowser && bluetoothPrintUrl) return;
-      window.print();
-    });
     return;
   }
 
