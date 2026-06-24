@@ -86,6 +86,12 @@ function getBluetoothPrintSchemeUrl(slipId: string) {
   return `my.bluetoothprint.scheme://${getBluetoothPrintReceiptUrl(slipId)}`;
 }
 
+function getBluetoothPrintIntentUrl(slipId: string) {
+  const receiptUrl = getBluetoothPrintReceiptUrl(slipId);
+  const fallbackUrl = encodeURIComponent("https://play.google.com/store/apps/details?id=mate.bluetoothprint");
+  return `intent://${receiptUrl}#Intent;scheme=my.bluetoothprint.scheme;package=mate.bluetoothprint;S.browser_fallback_url=${fallbackUrl};end`;
+}
+
 function fitReceiptLine(left: string, right: string, width = 32) {
   const l = String(left || "");
   const r = String(right || "");
@@ -130,6 +136,7 @@ export function printKingsBetSlip(slip: SlipForPrint) {
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=110x110&margin=0&data=${encodeURIComponent(ticketUrl)}`;
   const bluetoothPrintUrl = slip.id ? getBluetoothPrintReceiptUrl(slip.id) : "";
   const bluetoothPrintSchemeUrl = slip.id ? getBluetoothPrintSchemeUrl(slip.id) : "";
+  const bluetoothPrintIntentUrl = slip.id ? getBluetoothPrintIntentUrl(slip.id) : "";
 
   let barcodeSvg = "";
   try {
@@ -399,7 +406,7 @@ export function printKingsBetSlip(slip: SlipForPrint) {
 
     const printLink = document.createElement("a");
     printLink.id = "printTicketButton";
-    printLink.href = bluetoothPrintSchemeUrl;
+    printLink.href = androidBrowser ? bluetoothPrintIntentUrl : bluetoothPrintSchemeUrl;
     printLink.textContent = "Print Ticket";
     printLink.style.display = "inline-flex";
     printLink.style.alignItems = "center";
