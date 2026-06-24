@@ -67,6 +67,11 @@ function isAndroidBrowser() {
   return /Android/i.test(ua);
 }
 
+function isAndroidWebView() {
+  const ua = navigator.userAgent || "";
+  return /Android/i.test(ua) && (/\bwv\b/i.test(ua) || /Version\/4\.0/i.test(ua));
+}
+
 function getPublicApiBaseUrl() {
   const env = (import.meta as any)?.env || {};
   const configured = String(env.VITE_PUBLIC_API_URL || env.VITE_API_URL || "").trim();
@@ -115,6 +120,7 @@ function toBluetoothPrintText(lines: string[], barcodeValue: string) {
 export function printKingsBetSlip(slip: SlipForPrint) {
   const mobilePrintHost = isMobilePrintHost();
   const androidBrowser = isAndroidBrowser();
+  const androidWebView = isAndroidWebView();
   const selections = slip.BetSelections || [];
   const getSelectionOdds = (s: SlipSelection) => {
     const raw = Number(s.oddsAtPlacement || s?.snapshot?.outcome?.displayOdds || s?.snapshot?.outcome?.odds || 1);
@@ -366,8 +372,63 @@ export function printKingsBetSlip(slip: SlipForPrint) {
   </body>
 </html>`;
 
-  if (mobilePrintHost && thermerReceiptPageUrl) {
+  if (mobilePrintHost && androidWebView && thermerReceiptPageUrl) {
     window.location.assign(thermerReceiptPageUrl);
+    return;
+  }
+
+  if (mobilePrintHost && androidBrowser && bluetoothPrintSchemeUrl) {
+    const existing = document.getElementById("thermal-ticket-preview");
+    existing?.remove();
+
+    const previewDoc = new DOMParser().parseFromString(html, "text/html");
+    const overlay = document.createElement("div");
+    overlay.id = "thermal-ticket-preview";
+    overlay.style.position = "fixed";
+    overlay.style.inset = "0";
+    overlay.style.zIndex = "99999";
+    overlay.style.overflow = "auto";
+    overlay.style.background = "#fff";
+    overlay.style.color = "#111";
+    overlay.style.display = "flex";
+    overlay.style.flexDirection = "column";
+    overlay.style.alignItems = "center";
+
+    const style = previewDoc.querySelector("style");
+    if (style) overlay.appendChild(style.cloneNode(true));
+    Array.from(previewDoc.body.children).forEach((child) => {
+      if (child.tagName.toLowerCase() !== "script") overlay.appendChild(child.cloneNode(true));
+    });
+
+    const actions = document.createElement("div");
+    actions.style.position = "sticky";
+    actions.style.bottom = "0";
+    actions.style.width = "100%";
+    actions.style.display = "flex";
+    actions.style.justifyContent = "center";
+    actions.style.gap = "8px";
+    actions.style.padding = "12px";
+    actions.style.background = "#fff";
+    actions.style.borderTop = "1px solid #ddd";
+
+    const printLink = document.createElement("a");
+    printLink.href = bluetoothPrintSchemeUrl;
+    printLink.textContent = "Print with Thermer";
+    printLink.style.display = "inline-flex";
+    printLink.style.alignItems = "center";
+    printLink.style.justifyContent = "center";
+    printLink.style.minWidth = "180px";
+    printLink.style.padding = "13px 18px";
+    printLink.style.background = "#111";
+    printLink.style.color = "#fff";
+    printLink.style.fontFamily = "Arial, Helvetica, sans-serif";
+    printLink.style.fontSize = "15px";
+    printLink.style.fontWeight = "900";
+    printLink.style.textDecoration = "none";
+    printLink.style.borderRadius = "4px";
+    actions.appendChild(printLink);
+    overlay.appendChild(actions);
+    document.body.appendChild(overlay);
     return;
   }
 
