@@ -91,6 +91,28 @@ function getThermerReceiptPageUrl(slipId: string) {
   return `${getBluetoothPrintReceiptUrl(slipId)}/page`;
 }
 
+function getKing5PrinterReturnUrl() {
+  return "https://cashbox.king5.bet";
+}
+
+function getKing5PrinterSchemeUrl(slipId: string) {
+  const params = new URLSearchParams({
+    ticketId: slipId,
+    returnUrl: getKing5PrinterReturnUrl(),
+  });
+  return `king5printer://print?${params.toString()}`;
+}
+
+function getKing5PrinterIntentUrl(slipId: string) {
+  const returnUrl = getKing5PrinterReturnUrl();
+  const fallbackUrl = encodeURIComponent(returnUrl);
+  const params = new URLSearchParams({
+    ticketId: slipId,
+    returnUrl,
+  });
+  return `intent://print?${params.toString()}#Intent;scheme=king5printer;package=bet.king5.printer;S.browser_fallback_url=${fallbackUrl};end`;
+}
+
 function getBluetoothPrintSchemeUrl(slipId: string) {
   return `my.bluetoothprint.scheme://${getBluetoothPrintReceiptUrl(slipId)}`;
 }
@@ -140,6 +162,8 @@ export function printKingsBetSlip(slip: SlipForPrint) {
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=110x110&margin=0&data=${encodeURIComponent(ticketUrl)}`;
   const bluetoothPrintUrl = slip.id ? getBluetoothPrintReceiptUrl(slip.id) : "";
   const bluetoothPrintSchemeUrl = slip.id ? getBluetoothPrintSchemeUrl(slip.id) : "";
+  const king5PrinterSchemeUrl = slip.id ? getKing5PrinterSchemeUrl(slip.id) : "";
+  const king5PrinterIntentUrl = slip.id ? getKing5PrinterIntentUrl(slip.id) : "";
   const thermerReceiptPageUrl = slip.id ? getThermerReceiptPageUrl(slip.id) : "";
 
   let barcodeSvg = "";
@@ -372,8 +396,8 @@ export function printKingsBetSlip(slip: SlipForPrint) {
   </body>
 </html>`;
 
-  if (mobilePrintHost && androidWebView && thermerReceiptPageUrl) {
-    window.location.assign(thermerReceiptPageUrl);
+  if (mobilePrintHost && androidBrowser && king5PrinterIntentUrl) {
+    window.location.assign(androidWebView ? king5PrinterSchemeUrl : king5PrinterIntentUrl);
     return;
   }
 
@@ -413,7 +437,7 @@ export function printKingsBetSlip(slip: SlipForPrint) {
 
     const printLink = document.createElement("a");
     printLink.href = "#";
-    printLink.textContent = "Print with Thermer";
+    printLink.textContent = "Print with KING5 Printer";
     printLink.style.display = "inline-flex";
     printLink.style.alignItems = "center";
     printLink.style.justifyContent = "center";
@@ -428,15 +452,31 @@ export function printKingsBetSlip(slip: SlipForPrint) {
     printLink.style.borderRadius = "4px";
     printLink.addEventListener("click", (event) => {
       event.preventDefault();
-      const launcher = document.createElement("iframe");
-      launcher.style.display = "none";
-      launcher.src = bluetoothPrintSchemeUrl;
-      document.body.appendChild(launcher);
-      window.setTimeout(() => {
-        window.location.replace("https://cashbox.king5.bet");
-      }, 350);
+      try {
+        window.location.href = king5PrinterSchemeUrl || bluetoothPrintSchemeUrl;
+      } catch {
+        window.location.href = bluetoothPrintSchemeUrl;
+      }
     });
     actions.appendChild(printLink);
+
+    if (thermerReceiptPageUrl) {
+      const fallbackLink = document.createElement("a");
+      fallbackLink.href = thermerReceiptPageUrl;
+      fallbackLink.textContent = "Thermer fallback";
+      fallbackLink.style.display = "inline-flex";
+      fallbackLink.style.alignItems = "center";
+      fallbackLink.style.justifyContent = "center";
+      fallbackLink.style.padding = "13px 18px";
+      fallbackLink.style.background = "#f2f2f2";
+      fallbackLink.style.color = "#111";
+      fallbackLink.style.fontFamily = "Arial, Helvetica, sans-serif";
+      fallbackLink.style.fontSize = "15px";
+      fallbackLink.style.fontWeight = "900";
+      fallbackLink.style.textDecoration = "none";
+      fallbackLink.style.borderRadius = "4px";
+      actions.appendChild(fallbackLink);
+    }
     overlay.appendChild(actions);
     document.body.appendChild(overlay);
     return;
